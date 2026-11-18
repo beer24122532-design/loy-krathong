@@ -1289,6 +1289,7 @@ function frame(){
 
 spawnActive();
 initNet();
+window.__river={ remotes, localUploads, state, camera, pickRemote };
 if(document.fonts&&document.fonts.load) document.fonts.load('500 72px Prompt');
 frame();
 const hideLoader=()=>{ const l=$('loader'); if(!l||l.classList.contains('hide')) return; l.classList.add('hide'); setTimeout(()=>l.remove(),1300); };
