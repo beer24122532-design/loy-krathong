@@ -86,6 +86,12 @@
   @keyframes beat{0%,100%{transform:scale(1)}50%{transform:scale(1.18)}}
   .card-wish{font-size:clamp(1.15rem,4.6vw,1.45rem);line-height:1.75;color:#fdf0d6;text-shadow:0 0 12px rgba(255,200,130,.45)}
   .card-date{font-size:.72rem;color:rgba(246,226,186,.6);letter-spacing:.12em;font-weight:300}
+  /* Peek card (คำอวยพรของเพื่อน) */
+  #peekCard{position:fixed;left:50%;top:50%;transform:translate(-50%,-42%) scale(.97);z-index:35;width:min(88vw,520px);text-align:center;padding:22px 26px 18px;border-radius:28px;background:linear-gradient(165deg,rgba(30,26,70,.75),rgba(8,10,32,.68))}
+  #peekCard.show{transform:translate(-50%,-50%) scale(1)}
+  #peekClose{position:absolute;top:10px;right:12px;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;color:#f6e3b4;background:rgba(255,220,160,.06);border:1px solid rgba(232,190,110,.4);font-size:15px;transition:all .3s;cursor:pointer}
+  #peekClose:hover{background:rgba(255,220,160,.18)}
+  .river-chip{color:rgba(246,226,186,.55)}
   /* FABs */
   #fabs{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom));transform:translate(-50%,16px);z-index:20;display:flex;flex-wrap:wrap;justify-content:center;gap:10px;width:min(96vw,720px)}
   #fabs.show{transform:translate(-50%,0)}
@@ -106,7 +112,9 @@
 <script type="importmap">
 { "imports": {
   "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+  "firebase/app": "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js",
+  "firebase/database": "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js"
 } }
 </script>
 </head>
@@ -140,7 +148,7 @@
       <div class="flex items-end justify-between gap-3">
         <div>
           <h2 class="font-charm gold-text text-[2rem] leading-tight">สตูดิโอกระทง</h2>
-          <p class="text-[11px] text-amber-100/60 font-light">ลากเพื่อหมุนชมรอบทิศ · เลื่อนหรือถ่างนิ้วเพื่อซูม</p>
+          <p class="text-[11px] text-amber-100/60 font-light">ลากเพื่อหมุนชมรอบทิศ · เลื่อนหรือถ่างนิ้วเพื่อซูม <span id="riverChip" class="river-chip"></span></p>
         </div>
         <span id="panelToggleText" class="md:hidden text-[11px] text-amber-100/60 pb-1">แตะแถบเพื่อย่อ</span>
       </div>
@@ -199,6 +207,17 @@
   <p id="cardDate" class="card-date"></p>
 </article>
 
+<!-- Peek: คำอวยพรของคนอื่น -->
+<article id="peekCard" class="fade glass">
+  <button id="peekClose" aria-label="ปิด">✕</button>
+  <p class="card-eyebrow">คำอธิษฐานจากเพื่อนร่วมลอย</p>
+  <div class="orn"><span></span><b>✦</b><span></span></div>
+  <h2 id="peekNames" class="font-charm card-names"></h2>
+  <p id="peekWish" class="font-charm card-wish"></p>
+  <div class="orn"><span></span><b>❀</b><span></span></div>
+  <p id="peekDate" class="card-date"></p>
+</article>
+
 <!-- Phase 4: FABs -->
 <nav id="fabs" class="fade ui-ctrl">
   <button id="btnHide" class="fab glass">
@@ -210,6 +229,7 @@
     ลอยกระทงเพิ่ม
   </button>
   <button id="btnAudio2" class="fab glass"><span class="ico"></span><span class="lbl">เสียงบรรยากาศ: เปิด</span></button>
+  <span id="riverFab" class="fab glass" style="pointer-events:none;font-size:12px"></span>
 </nav>
 
 <button id="btnAudio" class="fade ui-ctrl glass" aria-label="เปิดหรือปิดเสียงบรรยากาศ"></button>
@@ -218,6 +238,7 @@
 <script type="module">
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
@@ -229,6 +250,7 @@ const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const easeInOut=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
 const easeOutBack=t=>{const c1=1.70158,c3=c1+1;return 1+c3*Math.pow(t-1,3)+c1*Math.pow(t-1,2);};
 const thaiNum=s=>String(s).replace(/\d/g,d=>'๐๑๒๓๔๕๖๗๘๙'[d]);
+const strHash=s=>{ let h=2166136261; for(let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619); } return (h>>>0)/4294967296; };
 const C=h=>new THREE.Color(h);
 const $=id=>document.getElementById(id);
 function waveH(x,z,t){ return Math.sin(x*0.12+t*0.7)*0.10+Math.sin(z*0.15+t*0.9+x*0.05)*0.08+Math.sin((x+z)*0.35+t*1.4)*0.03+Math.sin((x-z*0.7)*0.52-t*1.9)*0.02; }
@@ -722,6 +744,176 @@ class Krathong{
   dispose(){ scene.remove(this.root); disposeObj(this.model); }
 }
 
+/* ======================= Shared river: กระทงของคนอื่น (Firebase) ======================= */
+const FIREBASE_CONFIG={ apiKey:'', authDomain:'', databaseURL:'', projectId:'', storageBucket:'', messagingSenderId:'', appId:'' };
+const remotes=new Map();           // id -> RemoteKrathong
+const localUploads=new Map();      // id -> {n, data}  (กระทงของเราที่อัปโหลดแล้ว)
+const REMOTE_CAP=isMobile?14:36;
+let riverTotal=0, netOk=false, netOn=false;
+
+function remoteX(){ let x=rand(-44,44); while(x>-24&&x<-10) x=rand(-44,44); return x; } // เว้นโซนท่าไม้
+function labelText(d){ return d.n2?`${d.n1||'ผู้ลอยกระทง'} ♥ ${d.n2}`:(d.n1||'ผู้ลอยกระทง'); }
+
+const labelCache=new Map();
+function labelTexture(text){
+  if(labelCache.has(text)) return labelCache.get(text);
+  const fs=72,pad=48,c=document.createElement('canvas'),g=c.getContext('2d');
+  g.font=`500 ${fs}px Prompt, sans-serif`;
+  c.width=Math.ceil(g.measureText(text).width)+pad*2; c.height=Math.ceil(fs*1.5);
+  g.font=`500 ${fs}px Prompt, sans-serif`; g.textAlign='center'; g.textBaseline='middle';
+  g.shadowColor='rgba(255,186,100,.95)'; g.shadowBlur=22;
+  g.fillStyle='#fff2d8'; g.fillText(text,c.width/2,c.height/2+3);
+  const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; t.minFilter=THREE.LinearFilter; t.generateMipmaps=false;
+  if(labelCache.size>240) labelCache.clear();
+  labelCache.set(text,t); return t;
+}
+function makeLabelSprite(text){
+  const t=labelTexture(text),m=new THREE.SpriteMaterial({map:t,transparent:true,opacity:0,depthWrite:false,fog:false});
+  const s=new THREE.Sprite(m); const h=0.52; s.scale.set(h*t.image.width/t.image.height,h,1);
+  return s;
+}
+
+function colorizeGeo(g,col){ const c=typeof col==='string'?C(col):col,n=g.attributes.position.count,arr=new Float32Array(n*3);
+  for(let i=0;i<n;i++){ arr[i*3]=c.r; arr[i*3+1]=c.g; arr[i*3+2]=c.b; }
+  g.setAttribute('color',new THREE.BufferAttribute(arr,3)); g.deleteAttribute('uv'); return g; }
+
+const remoteGeoCache={};
+const remoteMat=new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.6,metalness:0.05,side:THREE.DoubleSide});
+const remoteFlameMat=new THREE.SpriteMaterial({map:glowTex,color:new THREE.Color(2.0,1.0,0.4),opacity:0.6,blending:THREE.AdditiveBlending,depthWrite:false});
+const remoteCoreMat=new THREE.SpriteMaterial({map:glowTex,color:new THREE.Color(3.4,2.6,1.4),opacity:0.85,blending:THREE.AdditiveBlending,depthWrite:false});
+const crystalGlowMat=new THREE.SpriteMaterial({map:glowTex,color:new THREE.Color(0.4,0.9,1.4),opacity:0.3,blending:THREE.AdditiveBlending,depthWrite:false});
+function remoteGeo(baseKey,palKey){
+  const key=baseKey+'|'+palKey; if(remoteGeoCache[key]) return remoteGeoCache[key];
+  const B=BASES[baseKey],P=PALETTES[palKey]||PALETTES.marigold,parts=[];
+  const pgeo=cached('petal_'+baseKey,()=>makePetal({...B.petal,colorFn:B.color}));
+  const m4=new THREE.Matrix4(),q=new THREE.Quaternion(),eu=new THREE.Euler(),pv=new THREE.Vector3(),ps=new THREE.Vector3(),qi=new THREE.Quaternion();
+  // กลีบฐานกระทง
+  B.tiers.forEach(tr=>{ for(let k=0;k<tr.n;k++){ const a=(k+(tr.off||0))/tr.n*Math.PI*2;
+    eu.set(tr.tilt,a,0,'YXZ'); q.setFromEuler(eu); pv.set(Math.sin(a)*tr.r,tr.y,Math.cos(a)*tr.r); ps.set(tr.w,tr.h,tr.w);
+    const gg=pgeo.clone(); gg.deleteAttribute('uv'); gg.applyMatrix4(m4.compose(pv,q,ps)); parts.push(gg); } });
+  // ฐาน + ดอกไม้ + เทียน + ธูป รวมเป็น geometry เดียว
+  const push=(g,hex)=>{ colorizeGeo(g,hex); parts.push(g); return g; };
+  if(baseKey==='leaf') push(new THREE.CylinderGeometry(1.16,1.08,0.34,48),'#5f8f43').applyMatrix4(m4.compose(pv.set(0,0.04,0),qi,ps.set(1,1,1)));
+  else if(baseKey==='lotus'){ const pad=new THREE.CircleGeometry(1.7,48,0.3,Math.PI*2-0.6); pad.rotateX(-Math.PI/2);
+      push(pad,'#2a6a3a').applyMatrix4(m4.compose(pv.set(0,0.05,0),qi,ps.set(1,1,1)));
+    push(new THREE.CylinderGeometry(1.08,1.0,0.3,48),'#f6d6e0').applyMatrix4(m4.compose(pv.set(0,0.06,0),qi,ps.set(1,1,1)));
+    const rim=new THREE.TorusGeometry(1.08,0.035,8,72); rim.rotateX(Math.PI/2);
+    push(rim,'#e5b45a').applyMatrix4(m4.compose(pv.set(0,0.2,0),qi,ps.set(1,1,1))); }
+  else { push(new THREE.CylinderGeometry(1.08,0.95,0.3,12),'#bfefff').applyMatrix4(m4.compose(pv.set(0,0.06,0),qi,ps.set(1,1,1)));
+    const ring=new THREE.TorusGeometry(1.08,0.025,8,72); ring.rotateX(Math.PI/2);
+    push(ring,'#9fe8ff').applyMatrix4(m4.compose(pv.set(0,0.2,0),qi,ps.set(1,1,1))); }
+  push(new THREE.SphereGeometry(0.62,32,12,0,Math.PI*2,0,Math.PI/2),baseKey==='leaf'?'#4e8a3a':baseKey==='lotus'?'#fbe3ea':'#d8f6ff')
+    .applyMatrix4(m4.compose(pv.set(0,0.15,0),qi,ps.set(1,0.55,1)));
+  const recipe=FLOWER_RECIPES[P.shape],fgeo=cached('fpetal',()=>makePetal({cup:0.22,bend:0.12,segX:4,segY:6,pw:0.7}));
+  const outer=C(P.outer),inner=C(P.inner),col=new THREE.Color(),twist=strHash(key)*6.283;
+  const Mf=new THREE.Matrix4(),Mp=new THREE.Matrix4(),M=new THREE.Matrix4();
+  const spots=[]; for(let k=0;k<9;k++) spots.push({a:k/9*Math.PI*2,r:0.42,y:0.4,tilt:0.5,s:1});
+  for(let k=0;k<5;k++) spots.push({a:(k+0.5)/5*Math.PI*2,r:0.19,y:0.5,tilt:0.22,s:0.82});
+  spots.forEach(sp=>{ eu.set(sp.tilt,sp.a,0,'YXZ'); q.setFromEuler(eu);
+    Mf.compose(pv.set(Math.sin(sp.a)*sp.r,sp.y,Math.cos(sp.a)*sp.r),q,ps.set(sp.s,sp.s,sp.s));
+    recipe.forEach(ring=>{ for(let j=0;j<ring.n;j++){ const pa=(j+(ring.off||0))/ring.n*Math.PI*2+twist;
+      eu.set(ring.tilt,pa,0,'YXZ'); q.setFromEuler(eu); const w=(ring.w||0.8)*ring.s;
+      Mp.compose(pv.set(0,0,0),q,ps.set(w,ring.s,w)); M.multiplyMatrices(Mf,Mp);
+      const gg=fgeo.clone(); gg.deleteAttribute('uv'); colorizeGeo(gg,col.copy(outer).lerp(inner,ring.c)); gg.applyMatrix4(M); parts.push(gg); } });
+    Mp.makeTranslation(0,0.025,0); M.multiplyMatrices(Mf,Mp);
+    push(new THREE.SphereGeometry(0.035,10,8),P.center).applyMatrix4(M); });
+  for(let k=0;k<9;k++){ const a=(k+0.5)/9*Math.PI*2;
+    push(new THREE.SphereGeometry(0.04,10,8),P.bud).applyMatrix4(m4.compose(pv.set(Math.sin(a)*0.52,0.33,Math.cos(a)*0.52),qi,ps.set(1,1.5,1))); }
+  push(new THREE.CylinderGeometry(0.065,0.07,0.5,24),P.candle).applyMatrix4(m4.compose(pv.set(0,0.73,0),qi,ps.set(1,1,1)));
+  for(let j=0;j<3;j++){ const a=j/3*Math.PI*2+0.5; eu.set(0.12,a,0,'YXZ'); q.setFromEuler(eu);
+    Mf.compose(pv.set(Math.sin(a)*0.17,0.45,Math.cos(a)*0.17),q,ps.set(1,1,1));
+    const st=new THREE.CylinderGeometry(0.009,0.009,0.62,6); st.applyMatrix4(Mp.makeTranslation(0,0.31,0)); st.applyMatrix4(Mf);
+    push(st,'#7a3020');
+    const tp=new THREE.SphereGeometry(0.013,8,6); tp.applyMatrix4(Mp.makeTranslation(0,0.62,0)); tp.applyMatrix4(Mf);
+    push(tp,new THREE.Color(1.6,0.9,0.5)); }
+  const geo=mergeGeometries(parts,false);
+  remoteGeoCache[key]={geo}; return remoteGeoCache[key];
+}
+
+class RemoteKrathong{
+  constructor(id,d){
+    this.id=id; this.data=d; this.dead=false; this.dying=false; this.fade=0; this.flick=1;
+    this.ph=Math.random()*6.283; this.spd=0.3+strHash(id)*0.65; this.dir=strHash(id+'r')<0.5?-1:1;
+    this.root=new THREE.Group(); this.tilt=new THREE.Group(); this.spin=new THREE.Group();
+    this.root.add(this.tilt); this.tilt.add(this.spin);
+    const g=remoteGeo(d.b,d.p||'marigold');
+    this.mesh=new THREE.Mesh(g.geo,remoteMat); this.mesh.frustumCulled=false; this.spin.add(this.mesh);
+    if(d.b==='crystal'){ const gl=new THREE.Sprite(crystalGlowMat); gl.position.y=0.4; gl.scale.setScalar(3.2); this.spin.add(gl); }
+    this.flame=new THREE.Sprite(remoteFlameMat); this.flame.position.y=1.03; this.spin.add(this.flame);
+    this.core=new THREE.Sprite(remoteCoreMat); this.core.position.y=1.03; this.spin.add(this.core);
+    this.label=makeLabelSprite(labelText(d)); this.label.position.y=1.8; this.spin.add(this.label);
+    this.root.position.set(remoteX(),0,rand(-118,-6));
+    scene.add(this.root);
+  }
+  update(dt,t){
+    if(this.dying){ this.fade-=dt*1.2; if(this.fade<=0){ this.fade=0; this.dead=true; } }
+    else this.fade=Math.min(1,this.fade+dt*1.5);
+    const p=this.root.position;
+    p.z-=this.spd*dt; p.x+=Math.sin(t*0.2+this.ph)*0.1*dt;
+    if(p.z<-128){ p.x=remoteX(); p.z=rand(-14,-6); }
+    const h=waveH(p.x,p.z,t),e=0.35,hx=waveH(p.x+e,p.z,t)-h,hz=waveH(p.x,p.z+e,t)-h;
+    p.y=h-0.02+Math.sin(t*1.25+this.ph)*0.015;
+    const f=1-Math.exp(-dt*3);
+    this.tilt.rotation.x+=(-hz/e*0.9-this.tilt.rotation.x)*f; this.tilt.rotation.z+=(hx/e*0.9-this.tilt.rotation.z)*f;
+    this.spin.rotation.y+=dt*0.05*this.dir;
+    const fl=0.8+0.09*Math.sin(t*11.3+this.ph)+0.05*Math.sin(t*23.1+this.ph*1.7); this.flick=fl*this.fade;
+    this.spin.scale.setScalar(Math.max(0.001,(0.85+strHash(this.id)*0.3)*this.fade));
+    this.flame.scale.setScalar(0.6*fl); this.core.scale.setScalar(0.22*fl);
+    this.label.material.opacity=(0.55+0.25*Math.sin(t*1.1+this.ph))*this.fade;
+  }
+  dispose(){ scene.remove(this.root); this.label.material.dispose(); }
+}
+
+function spawnRemote(id,d){
+  if(remotes.has(id)||!d||!d.b||!BASES[d.b]) return;
+  if(remotes.size>=REMOTE_CAP){ for(const [,ork] of remotes){ if(!ork.dying){ ork.dying=true; break; } } }
+  remotes.set(id,new RemoteKrathong(id,d));
+}
+function disposeRemote(id){ const r=remotes.get(id); if(r){ r.dispose(); remotes.delete(id); } }
+
+const riverChip=$('riverChip'), riverFab=$('riverFab');
+function updateRiverChip(){
+  const txt=netOk?(netOn?`· ในสายน้ำมีกระทง ${riverTotal} ใบ`:'· กำลังเชื่อมต่อสายน้ำกลาง…'):'';
+  if(riverChip) riverChip.textContent=txt;
+  if(riverFab) riverFab.textContent=netOn&&riverTotal>0?`มีกระทง ${riverTotal} ใบในสายน้ำ · แตะเพื่ออ่านคำอวยพร`:'';
+}
+
+let FBAPI=null,krathongRef=null;
+let initializeApp,getDatabase,ref,push,get,remove,child,query,limitToLast,limitToFirst,onChildAdded,onChildRemoved,onValue;
+async function purgeOld(){
+  if(!netOk) return;
+  try{ const snap=await get(query(krathongRef,limitToFirst(2000))); const keys=Object.keys(snap.val()||{});
+    riverTotal=keys.length; updateRiverChip();
+    if(keys.length>110){ for(const k of keys.slice(0,keys.length-60)) remove(child(krathongRef,k)).catch(()=>{}); }
+  }catch(e){}
+}
+function uploadKrathong(data){
+  if(!netOk) return Promise.resolve(null);
+  try{ return push(krathongRef,data).then(r=>r.key).catch(()=>null); }catch(e){ return Promise.resolve(null); }
+}
+function initNet(){
+  (async()=>{
+    try{
+      const mods=await Promise.race([
+        Promise.all([import('firebase/app'),import('firebase/database')]),
+        new Promise((_,rej)=>setTimeout(rej,7000)) ]);
+      FBAPI=Object.assign({},mods[0],mods[1]);
+      ({initializeApp,getDatabase,ref,push,get,remove,child,query,limitToLast,limitToFirst,onChildAdded,onChildRemoved,onValue}=FBAPI);
+      if(!FIREBASE_CONFIG.apiKey) return;
+      const app=initializeApp(FIREBASE_CONFIG), db=getDatabase(app);
+      krathongRef=ref(db,'krathongs'); netOk=true;
+      onValue(ref(db,'.info/connected'),s=>{ netOn=!!s.val(); updateRiverChip(); });
+      onChildAdded(query(krathongRef,limitToLast(50)),s=>{
+        const id=s.key,d=s.val(); if(!d) return; riverTotal++;
+        if(localUploads.has(id)||remotes.has(id)) return updateRiverChip();
+        spawnRemote(id,d); updateRiverChip(); });
+      onChildRemoved(krathongRef,s=>{ riverTotal=Math.max(0,riverTotal-1); disposeRemote(s.key); updateRiverChip(); });
+      setTimeout(purgeOld,9000); setInterval(purgeOld,120000);
+      updateRiverChip();
+    }catch(e){ netOk=false; }
+  })();
+}
+
 /* ======================= Particle updates ======================= */
 function updateSparkles(dt,t){ const P=sparks, drag=Math.pow(0.985,dt*60);
   for(let i=0;i<P.n;i++){ if(P.life[i]<=0){ P.alpha[i]=0; continue; } P.life[i]-=dt; const k=1-Math.max(P.life[i],0)/P.max[i], j=i*3;
@@ -937,10 +1129,14 @@ function updateViewOffset(dt){
 
 /* ======================= Krathong lights on water ======================= */
 function updateKrathongLights(){
-  const cp=camera.position;
-  const list=krathongs.filter(k=>!k.dead).sort((a,b)=>a.root.position.distanceToSquared(cp)-b.root.position.distanceToSquared(cp));
-  for(let i=0;i<8;i++){ const k=list[i]; if(k){ k.flameGroup.getWorldPosition(tmpV); lightsU[i].set(tmpV.x,tmpV.y,tmpV.z,k.flick); } else lightsU[i].w=0; }
-  lightPool.forEach((L,i)=>{ const k=list[i]; if(k){ L.position.set(lightsU[i].x,lightsU[i].y+0.05,lightsU[i].z); L.intensity=3.4*k.flick; } else L.intensity=0; });
+  const cp=camera.position; const list=[];
+  krathongs.forEach(k=>{ if(k.dead) return; k.flameGroup.getWorldPosition(tmpV);
+    list.push({x:tmpV.x,y:tmpV.y,z:tmpV.z,w:k.flick,d:k.root.position.distanceToSquared(cp)}); });
+  remotes.forEach(rk=>{ const p=rk.root.position;
+    list.push({x:p.x,y:p.y+1.0,z:p.z,w:rk.flick*0.85,d:p.distanceToSquared(cp)}); });
+  list.sort((a,b)=>a.d-b.d);
+  for(let i=0;i<8;i++){ const l=list[i]; if(l) lightsU[i].set(l.x,l.y,l.z,l.w); else lightsU[i].w=0; }
+  lightPool.forEach((L,i)=>{ const l=list[i]; if(l){ L.position.set(l.x,l.y+0.05,l.z); L.intensity=3.4*l.w; } else L.intensity=0; });
 }
 
 /* ======================= Fireworks scheduler ======================= */
@@ -995,6 +1191,11 @@ function releaseKrathong(){
   if(document.activeElement) document.activeElement.blur();
   state.phase='released'; show(studioEl,false);
   const drift=rand(-0.04,0.04);
+  const upData={n1,n2:dual?n2:'',w:wish,b:state.base,p:state.palette,t:Date.now()};
+  const releasedNow=active.slice(), nKr=active.length;
+  uploadKrathong(upData).then(key=>{ if(!key) return;
+    releasedNow.forEach(k=>{ k.uploadedId=key; });
+    localUploads.set(key,{n:nKr,data:upData}); });
   active.forEach(k=>{ k.released=true; k.releaseTime=T; k.vel.set(drift,0,-1.15); k.burst(60); addRipple(k.root.position.x,k.root.position.z,1.4,T); });
   leads=active.slice(); active=[]; cam.lx=0; cam.lz=0;
   setCamMode('cinematic',4.2);
@@ -1006,7 +1207,7 @@ function releaseKrathong(){
 $('btnRelease').addEventListener('click',releaseKrathong);
 
 $('btnAgain').addEventListener('click',()=>{ if(state.phase!=='released') return;
-  clearTimers(); audio.click(); show(cardEl,false); show(fabsEl,false); show(capEl,false);
+  clearTimers(); audio.click(); show(cardEl,false); show(fabsEl,false); show(capEl,false); hidePeek();
   state.phase='studio'; $('wish').value=''; spawnActive(); setCamMode('studio',3.4);
   later(()=>show(studioEl),900); });
 
@@ -1021,6 +1222,40 @@ function refreshAudioUI(){ $('btnAudio').innerHTML=audio.on?ICON_ON:ICON_OFF; co
   b.querySelector('.ico').innerHTML=audio.on?ICON_ON:ICON_OFF; b.querySelector('.lbl').textContent='เสียงบรรยากาศ: '+(audio.on?'เปิด':'ปิด'); }
 [$('btnAudio'),$('btnAudio2')].forEach(b=>b.addEventListener('click',e=>{ e.stopPropagation(); audio.toggle(); refreshAudioUI(); }));
 refreshAudioUI();
+
+/* ======================= Tap a krathong to read its wish ======================= */
+const peekEl=$('peekCard'); let peekOpen=false;
+function showPeek(rk){ const d=rk.data,names=$('peekNames');
+  names.textContent=''; names.append(document.createTextNode(d.n1||'ผู้ลอยกระทง'));
+  if(d.n2){ const h=document.createElement('span'); h.className='heart'; h.textContent='♥'; names.append(h,document.createTextNode(d.n2)); }
+  $('peekWish').textContent='“'+(d.w||'')+'”';
+  $('peekDate').textContent='ลอยกระทง ณ '+thaiNum(new Date(d.t||Date.now()).toLocaleDateString('th-TH',{year:'numeric',month:'long',day:'numeric'}));
+  peekOpen=true; show(peekEl); audio.click(); }
+function hidePeek(){ if(!peekOpen) return; peekOpen=false; show(peekEl,false); }
+$('peekClose').addEventListener('click',e=>{ e.stopPropagation(); hidePeek(); });
+
+const pickRay=new THREE.Raycaster(),pickNdc=new THREE.Vector2();
+function pickRemote(cx,cy){
+  if(!remotes.size||state.phase==='landing') return null;
+  pickNdc.set((cx/innerWidth)*2-1,-(cy/innerHeight)*2+1);
+  pickRay.setFromCamera(pickNdc,camera);
+  const ro=pickRay.ray.origin,rd=pickRay.ray.direction; let best=null,bd=1e9;
+  remotes.forEach(rk=>{ if(rk.dying) return; const p=rk.root.position;
+    tmpV.copy(p).sub(ro); const t=tmpV.dot(rd); if(t<0.5) return;
+    const d2=tmpV.lengthSq()-t*t; if(d2<2.56&&t<bd){ bd=t; best=rk; } });
+  return best;
+}
+let pickDown=null;
+canvas.addEventListener('pointerdown',e=>{ pickDown={x:e.clientX,y:e.clientY,id:e.pointerId,t:performance.now()}; });
+canvas.addEventListener('pointerup',e=>{
+  if(!pickDown||pickDown.id!==e.pointerId){ pickDown=null; return; }
+  const dx=e.clientX-pickDown.x,dy=e.clientY-pickDown.y,ok=performance.now()-pickDown.t<450&&dx*dx+dy*dy<64;
+  pickDown=null; if(!ok) return;
+  const hit=pickRemote(e.clientX,e.clientY);
+  if(hit) showPeek(hit); else hidePeek();
+});
+canvas.addEventListener('pointermove',e=>{ if(e.pointerType!=='mouse') return;
+  canvas.style.cursor=pickRemote(e.clientX,e.clientY)?'pointer':''; });
 
 /* ======================= Resize & adaptive quality ======================= */
 function onResize(){ const w=innerWidth,h=innerHeight;
@@ -1040,7 +1275,10 @@ function frame(){
   const raw=clock.getDelta(), dt=Math.min(raw,0.05); T+=dt; uTime.value=T;
   updateCamera(dt,T); updateViewOffset(dt);
   skyGroup.position.set(camera.position.x,0,camera.position.z);
-  for(let i=krathongs.length-1;i>=0;i--){ const k=krathongs[i]; k.update(dt,T); if(k.dead){ k.dispose(); krathongs.splice(i,1); } }
+  for(let i=krathongs.length-1;i>=0;i--){ const k=krathongs[i]; k.update(dt,T); if(k.dead){ k.dispose(); krathongs.splice(i,1);
+      if(k.uploadedId){ const lu=localUploads.get(k.uploadedId); if(lu&&--lu.n<=0){ localUploads.delete(k.uploadedId); spawnRemote(k.uploadedId,lu.data); } } } }
+  remotes.forEach(rk=>rk.update(dt,T));
+  for(const [id,rk] of remotes) if(rk.dead){ rk.dispose(); remotes.delete(id); }
   updateKrathongLights();
   updateLanna(T); updateSkyLanterns(dt,T); updateSparkles(dt,T); updateSmoke(dt,T); updateFireworks(dt,T);
   scheduleFireworks(T);
@@ -1050,6 +1288,8 @@ function frame(){
 }
 
 spawnActive();
+initNet();
+if(document.fonts&&document.fonts.load) document.fonts.load('500 72px Prompt');
 frame();
 const hideLoader=()=>{ const l=$('loader'); if(!l||l.classList.contains('hide')) return; l.classList.add('hide'); setTimeout(()=>l.remove(),1300); };
 (document.fonts?document.fonts.ready:Promise.resolve()).then(()=>setTimeout(hideLoader,400));
