@@ -342,7 +342,7 @@ const skyMat=new THREE.ShaderMaterial({
   void main(){ vec3 d=normalize(vDir); float h=d.y;
     vec3 col=mix(uHorizon,uMid,smoothstep(-0.02,0.28,h)); col=mix(col,uTop,smoothstep(0.25,0.95,h));
     float m=max(dot(d,normalize(uMoonDir)),0.0);
-    col+=uMoonGlow*(pow(m,60.0)*0.35+pow(m,8.0)*0.08+pow(m,2.0)*0.02);
+    col+=uMoonGlow*(pow(m,60.0)*0.2+pow(m,8.0)*0.045+pow(m,2.0)*0.012);
     col+=vec3(0.0,0.035,0.04)*(1.0-smoothstep(0.0,0.22,abs(h-0.05)));
     col+=uFlash*smoothstep(-0.1,0.6,h);
     gl_FragColor=vec4(col,1.0); }`,
@@ -365,16 +365,16 @@ const starMat=(()=>{
   const p=new THREE.Points(g,m); p.renderOrder=-9; p.frustumCulled=false; skyGroup.add(p); return m;
 })();
 
-const moon=new THREE.Sprite(new THREE.SpriteMaterial({map:makeMoonTexture(),color:new THREE.Color(1.7,1.6,1.4),fog:false,depthWrite:false,transparent:true}));
+const moon=new THREE.Sprite(new THREE.SpriteMaterial({map:makeMoonTexture(),color:new THREE.Color(1.22,1.16,1.0),fog:false,depthWrite:false,transparent:true}));
 moon.position.copy(moonPos); moon.scale.setScalar(64); moon.renderOrder=-7; skyGroup.add(moon);
-const halo=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex,color:new THREE.Color(1.0,0.85,0.6),opacity:0.5,blending:THREE.AdditiveBlending,fog:false,depthWrite:false}));
+const halo=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex,color:new THREE.Color(1.0,0.85,0.6),opacity:0.3,blending:THREE.AdditiveBlending,fog:false,depthWrite:false}));
 halo.position.copy(moonPos); halo.scale.setScalar(360); halo.renderOrder=-8; skyGroup.add(halo);
-const halo2=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex,color:new THREE.Color(0.5,0.62,1.0),opacity:0.16,blending:THREE.AdditiveBlending,fog:false,depthWrite:false}));
+const halo2=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex,color:new THREE.Color(0.5,0.62,1.0),opacity:0.1,blending:THREE.AdditiveBlending,fog:false,depthWrite:false}));
 halo2.position.copy(moonPos); halo2.scale.setScalar(950); halo2.renderOrder=-8; skyGroup.add(halo2);
 
 /* ======================= Lights ======================= */
 scene.add(new THREE.HemisphereLight(C('#3a4f9a'),C('#06141a'),0.5));
-const moonLight=new THREE.DirectionalLight(C('#c7d4ff'),0.9); moonLight.position.copy(moonDir).multiplyScalar(60); scene.add(moonLight);
+const moonLight=new THREE.DirectionalLight(C('#c7d4ff'),0.55); moonLight.position.copy(moonDir).multiplyScalar(60); scene.add(moonLight);
 const fillLight=new THREE.DirectionalLight(C('#9fb4ff'),0.28); scene.add(fillLight);
 const lightPool=[]; for(let i=0;i<4;i++){ const l=new THREE.PointLight(C('#ffa149'),0,12,2); scene.add(l); lightPool.push(l); }
 
@@ -407,7 +407,7 @@ const waterMat=new THREE.ShaderMaterial({
     vec3 skyC=mix(uHorizon,uSkyTop,smoothstep(0.0,0.5,Rf.y));
     vec3 col=mix(uDeep,skyC,clamp(fres*1.2,0.0,1.0));
     float md=max(dot(Rf,uMoonDir),0.0);
-    col+=uMoonCol*(pow(md,900.0)*14.0+pow(md,120.0)*1.2+pow(md,12.0)*0.08);
+    col+=uMoonCol*(pow(md,900.0)*8.0+pow(md,120.0)*0.7+pow(md,12.0)*0.045);
     col+=uMoonCol*ring*0.03;
     for(int i=0;i<10;i++){ vec4 L=uLights[i]; if(L.w<=0.0) continue; vec3 lv=L.xyz-vWorld; float ld=length(lv);
       col+=uWarm*L.w*0.35/(1.0+ld*ld*0.9);
@@ -1252,8 +1252,28 @@ canvas.addEventListener('pointerup',e=>{
   const dx=e.clientX-pickDown.x,dy=e.clientY-pickDown.y,ok=performance.now()-pickDown.t<450&&dx*dx+dy*dy<64;
   pickDown=null; if(!ok) return;
   const hit=pickRemote(e.clientX,e.clientY);
-  if(hit) showPeek(hit); else hidePeek();
+  if(hit) showPeek(hit);
+  else { hidePeek(); splashWater(e.clientX,e.clientY); }
 });
+function waterPointFromPointer(cx,cy){
+  pickNdc.set((cx/innerWidth)*2-1,-(cy/innerHeight)*2+1);
+  pickRay.setFromCamera(pickNdc,camera);
+  const ro=pickRay.ray.origin,rd=pickRay.ray.direction;
+  if(Math.abs(rd.y)<0.002) return null;
+  const t=-ro.y/rd.y; if(t<=0) return null;
+  const x=ro.x+rd.x*t,z=ro.z+rd.z*t;
+  if(x*x+z*z>62500) return null;
+  return {x,z};
+}
+function splashWater(cx,cy){
+  const wp=waterPointFromPointer(cx,cy); if(!wp) return;
+  addRipple(wp.x,wp.z,rand(1.1,1.5),T);
+  const n=isMobile?7:14;
+  for(let i=0;i<n;i++){ const a=rand(0,6.28);
+    sparks.spawn(wp.x+Math.cos(a)*rand(0,0.25),0.04,wp.z+Math.sin(a)*rand(0,0.25),
+      Math.cos(a)*rand(.2,.9),rand(.5,1.5),Math.sin(a)*rand(.2,.9),rand(.4,.8),1.7,1.55,1.2,rand(.05,.11)); }
+  if(audio.ready()) audio.drop(audio.ctx.currentTime);
+}
 canvas.addEventListener('pointermove',e=>{ if(e.pointerType!=='mouse') return;
   canvas.style.cursor=pickRemote(e.clientX,e.clientY)?'pointer':''; });
 
@@ -1289,7 +1309,7 @@ function frame(){
 
 spawnActive();
 initNet();
-window.__river={ remotes, localUploads, state, camera, pickRemote };
+window.__river={ remotes, localUploads, state, camera, pickRemote, rippleU };
 if(document.fonts&&document.fonts.load) document.fonts.load('500 72px Prompt');
 frame();
 const hideLoader=()=>{ const l=$('loader'); if(!l||l.classList.contains('hide')) return; l.classList.add('hide'); setTimeout(()=>l.remove(),1300); };
