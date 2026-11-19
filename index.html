@@ -707,15 +707,15 @@ function updateFish(dt,t){
     F.vx[i]+=(-F.ox[i]*1.7-F.vx[i]*1.2)*dt; F.vz[i]+=(-F.oz[i]*1.7-F.vz[i]*1.2)*dt;
     F.ox[i]+=F.vx[i]*dt; F.oz[i]+=F.vz[i]*dt;
     F.x[i]=bx+F.ox[i]; F.z[i]=bz+F.oz[i];
-    let y=-0.22+waveH(F.x[i],F.z[i],t)*0.22+Math.sin(t*1.7+F.ph[i])*0.02;
+    let y=waveH(F.x[i],F.z[i],t)*1.02+0.018+Math.sin(t*1.7+F.ph[i])*0.012;
     let jump=0;
     if(F.jt[i]>0){ F.jt[i]+=dt; const p=F.jt[i]/0.62;
-      if(p>=1){ F.jt[i]=0; } else { jump=Math.sin(p*Math.PI); y+=jump*0.42; } }
+      if(p>=1){ F.jt[i]=0; } else { jump=Math.sin(p*Math.PI); y+=jump*0.5; } }
     dummy.position.set(F.x[i],y,F.z[i]);
     const dx=-Math.sin(F.ang[i])*Math.sign(F.sp[i])+F.vx[i]*0.22;
     const dz=Math.cos(F.ang[i])*0.78*Math.sign(F.sp[i])+F.vz[i]*0.22;
     dummy.rotation.set(jump>0?-0.45:0, Math.atan2(dx,dz)+Math.sin(t*6+F.ph[i])*0.1, Math.sin(t*4+F.ph[i])*0.12);
-    dummy.scale.setScalar(F.sz[i]*(1+jump*0.15));
+    dummy.scale.set(F.sz[i],F.sz[i]*(0.30+jump*0.9),F.sz[i]);
     dummy.updateMatrix(); fishMesh.setMatrixAt(i,dummy.matrix);
   }
   fishMesh.instanceMatrix.needsUpdate=true;
