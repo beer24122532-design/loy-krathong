@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#02040f">
 <title>คืนเพ็ญอธิษฐานรัก · ลอยกระทง</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2064%2064'%3E%3Crect%20width='64'%20height='64'%20rx='14'%20fill='%2302040f'/%3E%3Ccircle%20cx='32'%20cy='28'%20r='8'%20fill='%23ffd27a'/%3E%3Cpath%20d='M13%2040c6%205%2013%207%2019%207s13-2%2019-7'%20fill='none'%20stroke='%23ffb066'%20stroke-width='4'%20stroke-linecap='round'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Charm:wght@400;700&family=Prompt:wght@200;300;400;500;600&display=swap" rel="stylesheet">
@@ -218,7 +219,7 @@
         <button id="btnHandClear" class="text-[10.5px] text-amber-100/50 hover:text-amber-100 transition-colors">ล้างลายมือ</button>
       </div>
       <canvas id="handPad" class="hand-pad" width="640" height="240" aria-label="กระดานเขียนลายมือคำอวยพร"></canvas>
-      <p class="text-[10px] text-amber-100/35 font-light mt-1.5">ลองใช้นิ้วหรือเมาส์เขียนข้อความสั้น ๆ ให้คนอื่นเห็นบนกระทง</p>
+      <p class="text-[10px] text-amber-100/35 font-light mt-1.5">เขียนได้ไม่จำกัด · ลายมือจะปรากฏบนกระทงของคุณ</p>
 
       <h3 class="sec"><i>๕</i>สายน้ำและบรรยากาศ</h3>
       <div id="riverPick2" class="river-pick compact">
@@ -382,13 +383,15 @@ const skyGroup=new THREE.Group(); scene.add(skyGroup);
 const moonPos=new THREE.Vector3(-40,160,-700);
 const moonDir=moonPos.clone().normalize();
 const skyMat=new THREE.ShaderMaterial({
-  uniforms:{uTop:{value:C('#02040f')},uMid:{value:C('#0a1540')},uHorizon:{value:FOG_COLOR},uMoonDir:{value:moonDir},uMoonGlow:{value:C('#ffe6b0')},uFlash:{value:flashColor}},
+  uniforms:{uTop:{value:C('#02040f')},uMid:{value:C('#0a1540')},uHorizon:{value:FOG_COLOR},uMoonDir:{value:moonDir},uMoonGlow:{value:C('#ffe6b0')},uRiverGlow:{value:C('#ffb066')},uFlash:{value:flashColor}},
   vertexShader:`varying vec3 vDir; void main(){ vDir=normalize(position); gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
-  fragmentShader:`uniform vec3 uTop,uMid,uHorizon,uMoonGlow,uFlash; uniform vec3 uMoonDir; varying vec3 vDir;
+  fragmentShader:`uniform vec3 uTop,uMid,uHorizon,uMoonGlow,uRiverGlow,uFlash; uniform vec3 uMoonDir; varying vec3 vDir;
   void main(){ vec3 d=normalize(vDir); float h=d.y;
     vec3 col=mix(uHorizon,uMid,smoothstep(-0.02,0.28,h)); col=mix(col,uTop,smoothstep(0.25,0.95,h));
     float m=max(dot(d,normalize(uMoonDir)),0.0);
     col+=uMoonGlow*(pow(m,60.0)*0.14+pow(m,8.0)*0.032+pow(m,2.0)*0.009);
+    float rb=pow(max(0.0,1.0-abs(h-0.03)*2.2),3.0);
+    col+=uRiverGlow*rb*0.11;
     col+=vec3(0.0,0.035,0.04)*(1.0-smoothstep(0.0,0.22,abs(h-0.05)));
     col+=uFlash*smoothstep(-0.1,0.6,h);
     gl_FragColor=vec4(col,1.0); }`,
@@ -569,10 +572,10 @@ let fireflyMat=null, bokehMat=null;
 
 /* ======================= Atmosphere: แม่น้ำ & เวลาจริง ======================= */
 const RIVERS={
-  chaophraya:{full:'แม่น้ำเจ้าพระยา',tint:[1,1,1],fogK:1.00},
-  mekong:{full:'แม่น้ำโขง',tint:[0.84,1.00,0.97],fogK:1.09},
-  ping:{full:'แม่น้ำปิง',tint:[1.08,0.98,0.86],fogK:0.94},
-  nan:{full:'แม่น้ำน่าน',tint:[0.89,0.96,1.12],fogK:1.14}
+  chaophraya:{full:'แม่น้ำเจ้าพระยา', sky:[1,1,1],       bank:[1,1,1],       mist:[1,1,1],       water:[1,1,1],       fogK:1.00,glow:'#ffb066',glowK:0.55},
+  mekong:{    full:'แม่น้ำโขง',    sky:[0.72,1.10,1.05],bank:[0.72,1.08,0.86],mist:[0.68,1.10,1.02],water:[0.68,1.12,1.02],fogK:1.20,glow:'#4fe0c0',glowK:1.05},
+  ping:{      full:'แม่น้ำปิง',    sky:[1.22,0.86,0.84],bank:[1.16,0.93,0.78],mist:[1.22,0.90,0.88],water:[1.18,0.90,0.80],fogK:0.82,glow:'#ff9a7a',glowK:1.00},
+  nan:{       full:'แม่น้ำน่าน',   sky:[0.74,0.84,1.34],bank:[0.74,0.88,1.22],mist:[0.74,0.86,1.28],water:[0.78,0.88,1.28],fogK:1.15,glow:'#8fb0ff',glowK:1.10}
 };
 const TOD_KEYS=[
   {h:0,   sky:'#02040f',mid:'#0a1540',hor:'#10304a',fog:'#10304a',deep:'#02121a',mtn:'#1a2850',hill:'#0e1838',tree:'#060a1a',mist:'#5f7cb0',moon:.38,moonVis:1,   star:1,   ff:1,   hemi:.50,fill:.28,expo:1.05,bloom:.95,mistO:1,   fogD:1   },
@@ -590,7 +593,6 @@ const AM={sky:new THREE.Color(),mid:new THREE.Color(),hor:new THREE.Color(),fog:
 const _white=C('#dfe9ff'), _gnd=C('#0a1a1a');
 const todNow={hour:0};
 let river='chaophraya';
-const riverTint=new THREE.Color(1,1,1);
 let toastTimer=0;
 let fishMat=null;
 function showToast(msg){
@@ -609,15 +611,19 @@ function applyAtmosphere(hourOverride){
   const h=typeof hourOverride==='number'?hourOverride:now.getHours()+now.getMinutes()/60+now.getSeconds()/3600;
   todNow.hour=((h%24)+24)%24;
   const {a,b,f}=todSample(todNow.hour);
-  const tint=riverTint, num=k=>a[k]+(b[k]-a[k])*f;
-  const mix=(key,out)=>out.copy(a[key]).lerp(b[key],f).multiply(tint);
-  mix('sky',AM.sky); mix('mid',AM.mid); mix('hor',AM.hor); mix('fog',AM.fog); mix('deep',AM.deep);
-  mix('mtn',AM.mtn); mix('hill',AM.hill); mix('tree',AM.tree); mix('mist',AM.mist);
+  const rv=RIVERS[river], num=k=>a[k]+(b[k]-a[k])*f;
+  const tintOf=arr=>new THREE.Color(arr[0],arr[1],arr[2]);
+  const tintSky=tintOf(rv.sky), tintBank=tintOf(rv.bank), tintMist=tintOf(rv.mist), tintWater=tintOf(rv.water);
+  const mix=(key,out,tint)=>out.copy(a[key]).lerp(b[key],f).multiply(tint);
+  mix('sky',AM.sky,tintSky); mix('mid',AM.mid,tintSky); mix('hor',AM.hor,tintSky); mix('fog',AM.fog,tintSky);
+  mix('deep',AM.deep,tintWater); mix('mtn',AM.mtn,tintBank); mix('hill',AM.hill,tintBank); mix('tree',AM.tree,tintBank);
+  mix('mist',AM.mist,tintMist);
 
   skyMat.uniforms.uTop.value.copy(AM.sky);
   skyMat.uniforms.uMid.value.copy(AM.mid);
   skyMat.uniforms.uHorizon.value.copy(AM.hor);
   skyMat.uniforms.uMoonGlow.value.copy(MOON_GLOW).multiplyScalar(0.05+0.95*num('moonVis'));
+  skyMat.uniforms.uRiverGlow.value.set(rv.glow).multiplyScalar(rv.glowK);
   scene.fog.color.copy(AM.fog);
   scene.fog.density=FOG_DENSITY*RIVERS[river].fogK*num('fogD');
   waterMat.uniforms.uDeep.value.copy(AM.deep);
@@ -653,7 +659,6 @@ function applyAtmosphere(hourOverride){
 function setRiver(key,silent){
   if(!RIVERS[key]) key='chaophraya';
   river=key;
-  const t=RIVERS[key].tint; riverTint.setRGB(t[0],t[1],t[2]);
   document.querySelectorAll('.rp').forEach(b=>b.classList.toggle('active',b.dataset.river===key));
   try{ localStorage.setItem('loy_river',key); }catch(e){}
   applyAtmosphere();
@@ -1141,13 +1146,12 @@ function initNet(){
 }
 
 /* ======================= Handwriting: ลายมือบนกระทง ======================= */
-const HAND_MAX_POINTS=160;
 const handPad=$('handPad'), handCtx=handPad?handPad.getContext('2d'):null;
 let handStrokes=[], handCode='', handDrawing=false, handStroke=null, handTex=null;
 const handDecalGeo=new THREE.PlaneGeometry(0.92,0.345);
 const handPreviewMat=new THREE.MeshBasicMaterial({transparent:true,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending,visible:false});
 const handTexCache=new Map();
-function handPointCount(){ return handStrokes.reduce((s,a)=>s+a.length,0); }
+const HAND_GX=127, HAND_GY=47;
 function drawHandStrokes(g,strokes,w,h,color,lw,glow=true){
   g.save(); g.lineCap='round'; g.lineJoin='round'; g.strokeStyle=color; g.lineWidth=lw;
   g.shadowColor=glow?'rgba(255,203,120,.9)':'transparent'; g.shadowBlur=glow?lw*2.4:0;
@@ -1162,20 +1166,74 @@ function drawHandStrokes(g,strokes,w,h,color,lw,glow=true){
   g.restore();
 }
 function handEncode(strokes){
-  return strokes.map(st=>st.map(p=>{
-    const x=clamp(Math.round(p.x*63),0,63), y=clamp(Math.round(p.y*23),0,23);
-    return (x*24+y).toString(36).padStart(3,'0');
-  }).join('')).join('|');
+  const parts=[];
+  for(const st of strokes){
+    if(!st.length) continue;
+    let seg='', px=0, py=0;
+    for(let i=0;i<st.length;i++){
+      const x=clamp(Math.round(st[i].x*HAND_GX),0,HAND_GX), y=clamp(Math.round(st[i].y*HAND_GY),0,HAND_GY);
+      if(i===0){ seg=(x*48+y).toString(36).padStart(3,'0'); }
+      else{
+        const dx=x-px, dy=y-py;
+        if(dx<-18||dx>17||dy<-18||dy>17){ parts.push(seg); seg=(x*48+y).toString(36).padStart(3,'0'); }
+        else seg+=((dx+18)*36+(dy+18)).toString(36).padStart(2,'0');
+      }
+      px=x; py=y;
+    }
+    if(seg) parts.push(seg);
+  }
+  return parts.length?('V'+parts.join('|')):'';
+}
+function handEncodeStep(strokes,step){
+  if(step<=1) return handEncode(strokes);
+  return handEncode(strokes.map(st=>{
+    if(st.length<=2) return st;
+    const out=[st[0]];
+    for(let i=step;i<st.length-1;i+=step) out.push(st[i]);
+    out.push(st[st.length-1]);
+    return out;
+  }));
+}
+/* เขียนได้ไม่จำกัด: ยิ่งลายมือยาว ระบบจะลดจุดละเอียดอ่อนให้พอดีกับที่ส่งได้ (700 ตัวอักษร) */
+function fitHandCode(strokes,maxLen=700){
+  if(!strokes.length) return '';
+  let code=handEncode(strokes);
+  if(code.length<=maxLen) return code;
+  for(let step=2;step<=64;step++){
+    code=handEncodeStep(strokes,step);
+    if(code.length<=maxLen) return code;
+  }
+  let trimmed=strokes.map(st=>st.length?[st[0],st[st.length-1]]:st).filter(st=>st.length);
+  while(trimmed.length&&handEncode(trimmed).length>maxLen) trimmed=trimmed.filter((_,i)=>i%2===0);
+  return handEncode(trimmed);
 }
 function handDecode(code){
   if(typeof code!=='string'||!code) return [];
+  const v2=code[0]==='V';
+  const body=v2?code.slice(1):code;
   const out=[];
-  for(const seg of code.split('|').slice(0,24)){
+  for(const seg of body.split('|')){
+    if(!seg) continue;
     const pts=[];
-    for(let i=0;i+2<seg.length;i+=3){
-      const v=parseInt(seg.slice(i,i+3),36);
-      if(!isFinite(v)||v<0||v>1535) continue;
-      pts.push({x:((v/24)|0)/63,y:(v%24)/23});
+    if(v2){
+      if(seg.length<3) continue;
+      let v=parseInt(seg.slice(0,3),36);
+      if(!isFinite(v)||v<0||v>6143) continue;
+      let px=(v/48)|0, py=v%48;
+      pts.push({x:px/HAND_GX,y:py/HAND_GY});
+      for(let i=3;i+1<seg.length;i+=2){
+        const d=parseInt(seg.slice(i,i+2),36);
+        if(!isFinite(d)||d<0||d>1295) break;
+        px=clamp(px+((d/36)|0)-18,0,HAND_GX);
+        py=clamp(py+(d%36)-18,0,HAND_GY);
+        pts.push({x:px/HAND_GX,y:py/HAND_GY});
+      }
+    } else {
+      for(let i=0;i+2<seg.length;i+=3){
+        const n=parseInt(seg.slice(i,i+3),36);
+        if(!isFinite(n)||n<0||n>1535) continue;
+        pts.push({x:((n/24)|0)/63,y:(n%24)/23});
+      }
     }
     if(pts.length) out.push(pts);
   }
@@ -1202,6 +1260,18 @@ function drawPad(){
   handCtx.beginPath(); handCtx.moveTo(36,172); handCtx.lineTo(604,172); handCtx.stroke(); handCtx.restore();
   drawHandStrokes(handCtx,handStrokes,640,240,'#ffe6b0',5,true);
 }
+function padStrokeStyle(g){
+  g.save(); g.lineCap='round'; g.lineJoin='round'; g.strokeStyle='#ffe6b0'; g.lineWidth=5;
+  g.shadowColor='rgba(255,203,120,.9)'; g.shadowBlur=12; g.fillStyle='#ffe6b0';
+}
+function drawPadDot(p){
+  if(!handCtx) return; const g=handCtx; padStrokeStyle(g);
+  g.beginPath(); g.arc(p.x*640,p.y*240,2.8,0,6.283); g.fill(); g.restore();
+}
+function drawPadSegment(q,p){
+  if(!handCtx) return; const g=handCtx; padStrokeStyle(g);
+  g.beginPath(); g.moveTo(q.x*640,q.y*240); g.lineTo(p.x*640,p.y*240); g.stroke(); g.restore();
+}
 function renderHandCanvas(cv,code){
   if(!cv) return;
   const strokes=handDecode(code); const g=cv.getContext('2d');
@@ -1210,7 +1280,7 @@ function renderHandCanvas(cv,code){
   drawHandStrokes(g,strokes,cv.width,cv.height,'#ffe9bd',5,true);
 }
 function refreshHandTexture(){
-  handCode=handEncode(handStrokes);
+  handCode=fitHandCode(handStrokes,700);
   if(handTex){ handTex.dispose(); handTex=null; }
   if(handCode){ handTex=makeHandTexture(handCode); handPreviewMat.map=handTex; handPreviewMat.needsUpdate=true; }
   handPreviewMat.visible=!!handCode;
@@ -1224,17 +1294,15 @@ function padPoint(e){ const r=handPad.getBoundingClientRect();
 if(handPad){
   handPad.addEventListener('pointerdown',e=>{
     if(e.button!==undefined&&e.button!==0) return;
-    if(handPointCount()>=HAND_MAX_POINTS||handStrokes.length>=24){ showToast('พื้นที่ลายมือเต็มแล้ว · กดล้างเพื่อเริ่มใหม่'); return; }
     e.preventDefault(); try{ handPad.setPointerCapture(e.pointerId); }catch(err){}
-    handDrawing=true; handStroke=[padPoint(e)]; handStrokes.push(handStroke); drawPad();
+    handDrawing=true; handStroke=[padPoint(e)]; handStrokes.push(handStroke); drawPadDot(handStroke[0]);
   });
   handPad.addEventListener('pointermove',e=>{
     if(!handDrawing||!handStroke) return;
     e.preventDefault();
     const p=padPoint(e), q=handStroke[handStroke.length-1];
-    if(handPointCount()>=HAND_MAX_POINTS) return;
     if((p.x-q.x)*(p.x-q.x)+(p.y-q.y)*(p.y-q.y)<0.00002) return;
-    handStroke.push(p); drawPad();
+    handStroke.push(p); drawPadSegment(q,p);
   });
   const endStroke=()=>{ if(!handDrawing) return; handDrawing=false; handStroke=null; refreshHandTexture(); };
   handPad.addEventListener('pointerup',endStroke);
@@ -1777,7 +1845,7 @@ setRiver(savedRiver,true);
 setInterval(()=>applyAtmosphere(),60000);
 window.__river={ remotes, localUploads, state, camera, pickRemote, rippleU, fish:F, fishMesh, scareFish, applyAtmosphere, setRiver, todNow, RIVERS,
   krathongs, getActive:()=>active, getT:()=>T, renderer, composer, scene, bloom, handPreviewMat, handTexCache, step, showPeek, hidePeek,
-  handEncode, handDecode, getHandCode:()=>handCode,
+  handEncode, handDecode, fitHandCode, getHandCode:()=>handCode,
   setHandCode:(code)=>{ handStrokes=handDecode(code); drawPad(); refreshHandTexture(); },
   buildShareCanvas, getLastRelease:()=>lastRelease, getPeek:()=>peekRK };
 if(document.fonts&&document.fonts.load) { document.fonts.load('500 72px Prompt'); document.fonts.load('700 86px Charm'); }
