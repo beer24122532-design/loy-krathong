@@ -540,8 +540,6 @@ const MOON_AZ=-0.057, MOON_R=700, moonDir=new THREE.Vector3();
 function setMoonEl(el){ const e=THREE.MathUtils.degToRad(el); moonDir.set(Math.sin(MOON_AZ)*Math.cos(e),Math.sin(e),-Math.cos(MOON_AZ)*Math.cos(e)); }
 setMoonEl(TOD.el);
 let moonDim=1;
-const RIPPLES=12, rippleU=Array.from({length:RIPPLES},()=>new THREE.Vector4(0,0,-999,0)); let rippleIdx=0;
-function addRipple(x,z,s,t){ rippleU[rippleIdx].set(x,z,t,s); rippleIdx=(rippleIdx+1)%RIPPLES; }
 const tapRipples=[];
 const lightsU=Array.from({length:10},()=>new THREE.Vector4(0,0,0,0));
 
@@ -610,39 +608,13 @@ const waterGeo=(()=>{ const n=Q(240,150), g=new THREE.PlaneGeometry(2,2,n,n); g.
   const p=g.attributes.position, f=v=>Math.sign(v)*Math.pow(Math.abs(v),2.2)*900;
   for(let i=0;i<p.count;i++) p.setXYZ(i,f(p.getX(i)),0,f(p.getZ(i))); g.computeBoundingSphere(); return g; })();
 const waterMat=new THREE.ShaderMaterial({
-  uniforms:{uTime,uMoonDir:{value:moonDir},uMoonCol:{value:new THREE.Color(1.0,0.86,0.62)},uMoonStr,uDeep:{value:F.deep},uSkyTop:{value:F.mid},
-    uHorizon:{value:F.hor},uFogColor:{value:F.hor},uFogDensity:fogU,uWarm:{value:new THREE.Color(1.0,0.55,0.2)},uBand:{value:F.band},
-    uRipples:{value:rippleU},uLights:{value:lightsU},uFlash:{value:flashColor}},
-  vertexShader:`uniform float uTime; varying vec3 vWorld; varying vec3 vN;
+  uniforms:{uTime,uDeep:{value:F.deep},uFogColor:{value:F.hor},uFogDensity:fogU},
+  vertexShader:`uniform float uTime; varying vec3 vWorld;
   float waveH(vec2 p,float t){ return sin(p.x*0.12+t*0.7)*0.10+sin(p.y*0.15+t*0.9+p.x*0.05)*0.08+sin((p.x+p.y)*0.35+t*1.4)*0.03+sin((p.x-p.y*0.7)*0.52-t*1.9)*0.02; }
-  void main(){ vec4 w=modelMatrix*vec4(position,1.0); float e=0.15;
-    float h=waveH(w.xz,uTime), hx=waveH(w.xz+vec2(e,0.0),uTime), hz=waveH(w.xz+vec2(0.0,e),uTime);
-    w.y+=h; vN=normalize(vec3(-(hx-h)/e,1.0,-(hz-h)/e)); vWorld=w.xyz; gl_Position=projectionMatrix*viewMatrix*w; }`,
-  fragmentShader:`uniform float uTime,uFogDensity,uMoonStr; uniform vec3 uMoonDir,uMoonCol,uDeep,uSkyTop,uHorizon,uFogColor,uWarm,uFlash,uBand;
-  uniform vec4 uRipples[12]; uniform vec4 uLights[10]; varying vec3 vWorld; varying vec3 vN;
-  void main(){ vec2 p=vWorld.xz; float t=uTime; float dist=length(cameraPosition-vWorld); float fade=1.0/(1.0+dist*0.004); float reflStrength=0.78;
-    vec2 m=vec2(sin(p.x*2.3+t*1.6+sin(p.y*1.7))+sin(p.x*5.7-p.y*3.1+t*2.9)*0.5, cos(p.y*2.9-t*1.3+sin(p.x*1.1))+sin(p.y*6.3+p.x*2.7-t*2.3)*0.5);
-    vec3 N=normalize(vN+vec3(m.x,0.0,m.y)*0.06*fade);
-    vec2 rn=vec2(0.0); float ring=0.0;
-    for(int i=0;i<12;i++){ vec4 R=uRipples[i]; float age=t-R.z; if(age<0.0||age>6.0) continue;
-      vec2 dv=p-R.xy; float d=length(dv)+1e-4; float x=d-age*1.3-0.6;
-      float env=exp(-x*x*4.0)*exp(-age*0.75)*R.w; rn+=dv/d*cos(x*9.0)*env; ring+=env*(0.6+0.4*sin(x*9.0)); }
-    N=normalize(N+vec3(rn.x,0.0,rn.y)*0.55);
-    vec3 V=normalize(cameraPosition-vWorld); vec3 Rf=reflect(-V,N);
-    float fres=0.04+0.96*pow(1.0-max(dot(N,V),0.0),5.0);
-    vec3 skyC=mix(uHorizon,uSkyTop,smoothstep(0.0,0.5,Rf.y));
-    vec3 col=mix(uDeep,skyC,clamp(fres*1.15*reflStrength,0.0,1.0));
-    col+=uBand*exp(-pow(Rf.y/0.09,2.0))*0.45*fres*reflStrength;
-    vec3 mc=uMoonCol*uMoonStr; float md=max(dot(Rf,uMoonDir),0.0);
-    col+=mc*(pow(md,500.0)*4.5+pow(md,70.0)*0.75+pow(md,10.0)*0.06)*reflStrength;
-    float gl=smoothstep(0.62,1.0,sin(p.x*7.0+t*2.3)*sin(p.y*5.0-t*1.7)*0.5+0.5);
-    col+=mc*pow(md,36.0)*gl*0.45*fade*reflStrength;
-    col+=mc*ring*0.025*reflStrength;
-    for(int i=0;i<10;i++){ vec4 L=uLights[i]; if(L.w<=0.0) continue; vec3 lv=L.xyz-vWorld; float ld=length(lv);
-      col+=uWarm*L.w*0.32/(1.0+ld*ld*0.9);
-      float s=pow(max(dot(Rf,lv/ld),0.0),40.0); col+=uWarm*s*L.w*1.5*reflStrength/(1.0+ld*0.3);
-      col+=uWarm*ring*0.45*L.w*reflStrength/(1.0+ld*ld*0.15); }
-    col+=uFlash*fres*0.6*reflStrength;
+  void main(){ vec4 w=modelMatrix*vec4(position,1.0); w.y+=waveH(w.xz,uTime); vWorld=w.xyz; gl_Position=projectionMatrix*viewMatrix*w; }`,
+  fragmentShader:`uniform float uTime,uFogDensity; uniform vec3 uDeep,uFogColor; varying vec3 vWorld;
+  void main(){ vec2 p=vWorld.xz; float flow=sin(p.x*0.24+uTime*0.35)*sin(p.y*0.18-uTime*0.27);
+    vec3 col=uDeep*(1.0+0.06*flow); float dist=length(cameraPosition-vWorld);
     float f=1.0-exp(-pow(uFogDensity*dist,2.0)); col=mix(col,uFogColor,f);
     gl_FragColor=vec4(col,1.0); }`
 });
@@ -1155,7 +1127,7 @@ class Krathong{
     this.root.add(this.tiltNode); this.tiltNode.add(this.spin); scene.add(this.root);
     this.root.position.set(homeX,0,0); this.homeX=homeX; this.seed=Math.random()*100; this.data=data;
     this.released=false; this.vel=new THREE.Vector3(); this.releaseTime=0; this.fade=1; this.dead=false; this.fadeOut=false; this.remote=false;
-    this.rippleT=Math.random()*1.5; this.smokeT=0; this.trailT=0; this.flick=1; this.spinDir=Math.random()<.5?-1:1; this.label=null;
+    this.smokeT=0; this.trailT=0; this.flick=1; this.spinDir=Math.random()<.5?-1:1; this.label=null;
     this.pvx=0; this.pvz=0; this.wob=0; this.wobT=0; this.wdx=0; this.wdz=0; this.tx=0; this.tz=0; this.inkTex=null; this.inkStrokes=null;
     this.build(base,palette,decor,true);
   }
@@ -1198,8 +1170,6 @@ class Krathong{
     if(this.fairy){ this.fairy.rotation.y+=dt*0.35; const ch=this.fairy.children;
       for(let i=0;i<ch.length;i++){ ch[i].position.y=0.5+Math.sin(t*1.6+i*1.3)*0.1; ch[i].scale.setScalar(0.15+0.09*(0.5+0.5*Math.sin(t*3+i*2.1))); } }
     if(this.label){ this.label.material.opacity=this.fade*(0.88+0.12*Math.sin(t*1.5+s0)); this.label.position.y=2.0+Math.sin(t*0.9+s0)*0.06; }
-    this.rippleT-=dt;
-    if(this.rippleT<=0){ const moving=this.released&&t-this.releaseTime<60; addRipple(p.x,p.z,(moving?0.9:0.55)*this.fade,t); this.rippleT=moving?0.6:2.3+Math.random(); }
     if(this.released&&this.fade>0.3&&t-this.releaseTime<45){ this.trailT-=dt;
       while(this.trailT<=0){ this.trailT+=LOW?0.06:0.035; const c=this.base==='crystal'?[0.8,1.8,2.6]:(Math.random()<0.6?[2.4,1.6,0.6]:[2.4,1.1,0.9]);
         sparks.spawn(p.x+rand(-0.6,0.6),p.y+rand(0.1,0.4),p.z+rand(0.5,1.3),rand(-.1,.1),rand(0.2,0.6),rand(0,.2),rand(1.5,3),c[0],c[1],c[2],rand(0.06,0.14)); } }
@@ -1269,7 +1239,7 @@ function updateFish(dt,t){
     let sp=Math.hypot(vx,vz); const mx=FS.scare[i]>0?7:2.4; if(sp>mx){ vx*=mx/sp; vz*=mx/sp; sp=mx; }
     FS.vx[i]=vx; FS.vz[i]=vz; FS.x[i]+=vx*dt; FS.z[i]+=vz*dt;
     if(FS.jump[i]){ FS.vy[i]-=9.8*dt; FS.y[i]+=FS.vy[i]*dt;
-      if(FS.y[i]<=0&&FS.vy[i]<0){ FS.y[i]=0; FS.jump[i]=0; spawnSplash(FS.x[i],FS.z[i],0.55); addRipple(FS.x[i],FS.z[i],0.7,t);
+      if(FS.y[i]<=0&&FS.vy[i]<0){ FS.y[i]=0; FS.jump[i]=0; spawnSplash(FS.x[i],FS.z[i],0.55);
         tapRipples.push({x:FS.x[i],z:FS.z[i],t0:t,s:0.5}); moonDim=Math.min(moonDim,0.8); audio.splash(0.45); } }
     const air=FS.jump[i]===1, surf=waveH(FS.x[i],FS.z[i],t);
     const yaw=Math.atan2(-vz,vx)+Math.sin(t*(8+sp*3)+FS.ph[i])*0.16;
@@ -1537,7 +1507,7 @@ function releaseMyLantern(){
   camera.getWorldDirection(tmpV); tmpV.y=0; tmpV.normalize();
   g.position.copy(camera.position).addScaledVector(tmpV,8); g.position.x+=rand(-1.2,1.2); g.position.y=0.4; g.scale.setScalar(0.001);
   scene.add(g); myLanterns.push({g,glow,t0:T,ph:rand(0,6.28),bx:g.position.x,bz:g.position.z});
-  addRipple(g.position.x,g.position.z,1.0,T); audio.lantern();
+  audio.lantern();
   for(let i=0;i<36;i++){ const a=rand(0,6.28); sparks.spawn(g.position.x+Math.cos(a)*0.5,0.4,g.position.z+Math.sin(a)*0.5,Math.cos(a)*0.4,rand(0.6,1.4),Math.sin(a)*0.4,rand(1.2,2.2),2.6,1.5,0.6,rand(0.06,0.12)); }
   toast('โคมลอยของคุณกำลังพาคำอธิษฐานขึ้นสู่ฟากฟ้า…'); }
 function updateMyLanterns(dt,t){
@@ -1575,7 +1545,7 @@ function pickKrathong(x,y){ let best=null,bd=1e9;
     if(dd<r&&dd<bd){ bd=dd; best=k; } }
   return best; }
 function touchWater(px,pz,s=1){
-  addRipple(px,pz,1.3*s,T); tapRipples.push({x:px,z:pz,t0:T,s:1.3*s}); if(tapRipples.length>12) tapRipples.shift();
+  tapRipples.push({x:px,z:pz,t0:T,s:1.3*s}); if(tapRipples.length>12) tapRipples.shift();
   spawnSplash(px,pz,s); moonDim=Math.min(moonDim,0.42); audio.splash(s); scareFish(px,pz); }
 function onTap(x,y){
   const hit=pickKrathong(x,y);
@@ -1810,7 +1780,7 @@ function releaseKrathong(){
   state.phase='released'; show(studioEl,false); controls.autoRotate=false; $('btnAutoRot').classList.remove('active');
   document.body.classList.add('letterbox'); later(()=>document.body.classList.remove('letterbox'),4600);
   const drift=rand(-0.04,0.04);
-  active.forEach(k=>{ k.data={names:namesStr,wish,ink:code}; k.released=true; k.releaseTime=T; k.vel.set(drift,0,-1.15); k.burst(60); addRipple(k.root.position.x,k.root.position.z,1.4,T); });
+  active.forEach(k=>{ k.data={names:namesStr,wish,ink:code}; k.released=true; k.releaseTime=T; k.vel.set(drift,0,-1.15); k.burst(60); });
   leads=active.slice(); active=[]; cam.lx=0; cam.lz=0;
   setCamMode('cinematic',4.2);
   releaseSkyLanterns(); fwState.until=T+28; fwState.next=T+1.8;
