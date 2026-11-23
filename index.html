@@ -633,7 +633,8 @@ const waterMat=new THREE.ShaderMaterial({
     vec3 skyC=mix(uHorizon,uSkyTop,smoothstep(0.0,0.5,Rf.y));
     vec3 col=mix(uDeep,skyC,clamp(fres*1.15,0.0,1.0));
     col+=uBand*exp(-pow(Rf.y/0.09,2.0))*0.45*fres;
-    vec3 mc=uMoonCol*uMoonStr; float md=max(dot(Rf,uMoonDir),0.0);
+    const float moonWaterReflection=0.18;
+    vec3 mc=uMoonCol*uMoonStr*moonWaterReflection; float md=max(dot(Rf,uMoonDir),0.0);
     col+=mc*(pow(md,500.0)*4.5+pow(md,70.0)*0.75+pow(md,10.0)*0.06);
     float gl=smoothstep(0.62,1.0,sin(p.x*7.0+t*2.3)*sin(p.y*5.0-t*1.7)*0.5+0.5);
     col+=mc*pow(md,36.0)*gl*0.45*fade;
