@@ -140,7 +140,8 @@
   .fab:hover{box-shadow:0 0 26px rgba(232,190,110,.35);transform:translateY(-2px)}
   .fab svg{width:17px;height:17px;flex:none}
   .fab-gold{background:linear-gradient(180deg,rgba(255,231,166,.92),rgba(201,141,53,.92));color:#2a1606;border-color:rgba(255,236,190,.8);font-weight:500}
-  @media (max-width:767px){ .fab:not(.fab-gold) .lbl{display:none} .fab{padding:12px} #tapHint{bottom:calc(80px + env(safe-area-inset-bottom));font-size:11px} }
+  .fab-read{border-color:rgba(255,220,150,.76);background:linear-gradient(160deg,rgba(90,66,32,.76),rgba(20,18,38,.78));box-shadow:0 0 22px rgba(232,190,110,.2)}
+  @media (max-width:767px){ .fab:not(.fab-gold) .lbl{display:none} #btnReadRiver .lbl{display:inline} .fab{padding:12px} #tapHint{bottom:calc(124px + env(safe-area-inset-bottom));font-size:11px} }
   #btnAudio{position:fixed;top:calc(14px + env(safe-area-inset-top));left:calc(16px + env(safe-area-inset-left));z-index:25;width:44px;height:44px;border-radius:50%;display:grid;place-items:center;color:#f6e3b4;transition:all .3s}
   #btnAudio svg{width:20px;height:20px}
   #captureHint{position:fixed;left:50%;bottom:calc(26px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:30;padding:9px 18px;border-radius:999px;font-size:12px;color:#f6e3b4;background:rgba(5,8,26,.55);border:1px solid rgba(232,190,110,.3);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
@@ -158,6 +159,17 @@
   .sharebox{position:relative;display:grid;place-items:center;min-height:200px}
   #shareImg{width:auto;max-width:100%;max-height:58vh;aspect-ratio:4/5;object-fit:contain;border-radius:18px;border:1px solid rgba(232,190,110,.3);background:#050818;transition:opacity .5s}
   #shareLoading{position:absolute;inset:0;display:grid;place-items:center;font-family:'Charm',cursive;font-size:1.4rem;color:#f3d999}
+  .river-read-modal{gap:12px}
+  .river-read-list{display:grid;gap:8px;max-height:min(58vh,520px);overflow-y:auto;padding-right:3px;scrollbar-width:thin;scrollbar-color:rgba(232,190,110,.35) transparent}
+  .river-read-item{display:flex;align-items:center;gap:12px;width:100%;min-height:68px;padding:11px 13px;border:1px solid rgba(232,190,110,.22);border-radius:16px;background:rgba(255,255,255,.04);color:#fff1cf;text-align:left;transition:background .2s,border-color .2s,transform .2s}
+  .river-read-item:hover,.river-read-item:focus-visible{background:rgba(255,220,160,.1);border-color:rgba(232,190,110,.62);transform:translateY(-1px);outline:none}
+  .river-read-mark{display:grid;place-items:center;width:38px;height:38px;flex:none;border-radius:50%;background:radial-gradient(circle,#ffe9b4,rgba(210,150,67,.28) 70%);color:#754514;font-size:20px;box-shadow:0 0 18px rgba(255,190,100,.22)}
+  .river-read-copy{display:grid;gap:2px;min-width:0;flex:1}
+  .river-read-copy strong{font-family:'Charm',cursive;font-size:1.3rem;line-height:1.3;overflow-wrap:anywhere}
+  .river-read-copy span{font-size:.78rem;line-height:1.55;color:rgba(246,234,208,.7);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .river-read-arrow{flex:none;color:rgba(246,226,186,.55);font-size:1.25rem}
+  .river-read-badge{display:grid;place-items:center;min-width:21px;height:21px;padding:0 5px;border-radius:999px;background:rgba(255,225,165,.2);border:1px solid rgba(232,190,110,.45);font-size:11px;font-variant-numeric:tabular-nums}
+  #riverReadClose{width:44px;height:44px}
   /* Krathong peek card */
   .peek-wrap{background:radial-gradient(ellipse at 50% 42%,rgba(12,20,50,.46),rgba(2,4,15,.82) 72%);z-index:56;padding:18px}
   .peek-wrap.fade{transition:opacity .35s ease,visibility 0s linear .35s}
@@ -363,10 +375,12 @@
   <p class="card-fortune"><span>เซียมซีสายน้ำ</span><b id="cardFortune"></b></p>
   <p id="cardDate" class="card-date"></p>
 </article>
-<div id="tapHint" class="fade ui-ctrl">แตะผืนน้ำให้ปลาตกใจกระโดด · แตะท้องฟ้าจุดพลุ · แตะกระทงผู้อื่นเพื่อเปิดป้ายคำอธิษฐาน</div>
+<div id="tapHint" class="fade ui-ctrl">แตะกระทงผู้อื่น หรือกดปุ่มอ่านกระทงคนอื่นเพื่อเปิดคำอธิษฐาน</div>
 
 <!-- Phase 4 -->
 <nav id="fabs" class="fade ui-ctrl">
+  <button id="btnReadRiver" class="fab glass fab-read" title="เลือกอ่านคำอธิษฐานจากกระทงคนอื่น" aria-label="อ่านกระทงคนอื่น">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5.5h16v11H9l-5 3z"/><path d="M8 10h.01M12 10h.01M16 10h.01"/></svg><span class="lbl">อ่านกระทงคนอื่น</span><span id="riverReadBadge" class="river-read-badge" aria-live="polite">0</span></button>
   <button id="btnHide" class="fab glass" title="ซ่อนปุ่มเพื่อแคปหน้าจอ">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="6" width="18" height="13" rx="3"/><circle cx="12" cy="12.5" r="3.4"/><path d="M8 6l1.5-2h5L16 6"/></svg><span class="lbl">ซ่อนปุ่มเพื่อแคปหน้าจอ</span></button>
   <button id="btnCard" class="fab glass" title="การ์ดแชร์ความทรงจำ">
@@ -429,6 +443,17 @@
     </div>
     <p class="peek-foot">คำอธิษฐานจากผู้ร่วมสายน้ำ · แตะพื้นหลังเพื่อกลับ</p>
   </div>
+</div>
+
+<div id="riverRead" class="modal-wrap fade" role="dialog" aria-modal="true" aria-labelledby="riverReadTitle">
+  <section class="modal glass river-read-modal">
+    <div class="flex items-center justify-between gap-3">
+      <div><h3 id="riverReadTitle" class="font-charm gold-text text-[1.8rem] leading-tight">กระทงจากสายน้ำร่วม</h3><p id="riverReadCount" class="text-xs text-amber-100/60 mt-1" aria-live="polite"></p></div>
+      <button id="riverReadClose" class="mini" aria-label="ปิดรายการกระทง">✕</button>
+    </div>
+    <div id="riverReadList" class="river-read-list"></div>
+    <p id="riverReadEmpty" class="text-sm text-amber-100/65 font-light py-5 text-center" hidden>ตอนนี้ยังไม่มีกระทงจากคนอื่นลอยอยู่<br>ลองกลับมาเปิดดูอีกครั้งนะ</p>
+  </section>
 </div>
 
 <script type="module">
@@ -1170,7 +1195,7 @@ class Krathong{
     this.inkStrokes=strokes&&strokes.length?strokes.map(s=>s.slice()):null;
     if(this.inkStrokes) this.inkTex=makeInkTex(this.inkStrokes);
     if(rebuild) this.build(this.base,this.palette,this.decor,false,true); }
-  adopt(d){ this.data={names:d.names,wish:d.wish,ink:d.ink}; this.setInk(decodeInk(d.ink),false); this.build(d.base,d.palette,this.decor,true); }
+  adopt(d){ this.data={names:d.names,wish:d.wish,ink:d.ink,t:d.t||0}; this.setInk(decodeInk(d.ink),false); this.build(d.base,d.palette,this.decor,true); }
   setLabel(text){
     if(!text){ if(this.label) this.label.visible=false; return; }
     if(!this.label){ this.label=new THREE.Sprite(new THREE.SpriteMaterial({transparent:true,depthWrite:false,color:new THREE.Color(0.9,0.9,0.9)}));
@@ -1565,20 +1590,20 @@ function scheduleFireworks(t){
 
 /* ======================= Tap interactions ======================= */
 let downAt=null, lastTapFw=0;
-canvas.addEventListener('pointerdown',e=>{ downAt={x:e.clientX,y:e.clientY,t:performance.now()}; });
-canvas.addEventListener('pointerup',e=>{ if(!downAt) return; const dx=e.clientX-downAt.x, dy=e.clientY-downAt.y, quick=performance.now()-downAt.t<350; downAt=null;
-  if(dx*dx+dy*dy>64||!quick||state.phase==='landing') return; onTap(e.clientX,e.clientY); });
-function pickKrathong(x,y){ let best=null,bd=1e9;
+canvas.addEventListener('pointerdown',e=>{ downAt={x:e.clientX,y:e.clientY,t:performance.now(),touch:e.pointerType==='touch'}; });
+canvas.addEventListener('pointerup',e=>{ if(!downAt) return; const dx=e.clientX-downAt.x, dy=e.clientY-downAt.y, quick=performance.now()-downAt.t<350, touch=downAt.touch; downAt=null;
+  if(dx*dx+dy*dy>(touch?196:64)||!quick||state.phase==='landing') return; onTap(e.clientX,e.clientY,touch); });
+function pickKrathong(x,y,touch=false){ let best=null,bd=1e9;
   for(const k of krathongs){ if(k.dead||!k.data||!k.released) continue;
     tmpV.copy(k.root.position); tmpV.y+=0.6; const dist=tmpV.distanceTo(camera.position); tmpV.project(camera); if(tmpV.z>1||tmpV.z<-1) continue;
-    const sx=(tmpV.x+1)/2*innerWidth, sy=(1-tmpV.y)/2*innerHeight, r=Math.max(30,innerHeight*0.6/Math.max(dist,1)), dd=Math.hypot(sx-x,sy-y);
+    const sx=(tmpV.x+1)/2*innerWidth, sy=(1-tmpV.y)/2*innerHeight, r=Math.max(touch?56:30,innerHeight*(touch?0.82:0.6)/Math.max(dist,1)), dd=Math.hypot(sx-x,sy-y);
     if(dd<r&&dd<bd){ bd=dd; best=k; } }
   return best; }
 function touchWater(px,pz,s=1){
   addRipple(px,pz,1.3*s,T); tapRipples.push({x:px,z:pz,t0:T,s:1.3*s}); if(tapRipples.length>12) tapRipples.shift();
   spawnSplash(px,pz,s); moonDim=Math.min(moonDim,0.42); audio.splash(s); scareFish(px,pz); }
-function onTap(x,y){
-  const hit=pickKrathong(x,y);
+function onTap(x,y,touch=false){
+  const hit=pickKrathong(x,y,touch);
   if(hit){ hit.burst(16); openPeek(hit); return; }
   _ndc.set(x/innerWidth*2-1,-(y/innerHeight)*2+1); _ray.setFromCamera(_ndc,camera);
   const o=_ray.ray.origin, d=_ray.ray.direction;
@@ -1765,8 +1790,33 @@ function openPeek(k){
   cv.style.display=has?'block':'none'; $('peekGlyph').style.display=has?'none':'block';
   show(peekEl); audio.click();
 }
+function remoteReadItems(){
+  return krathongs.filter(k=>k.remote&&!k.dead&&!k.fadeOut&&k.data).sort((a,b)=>(b.data.t||0)-(a.data.t||0)||b.releaseTime-a.releaseTime); }
+function updateReadRiverButton(){
+  const n=remoteReadItems().length, badge=$('riverReadBadge');
+  badge.textContent=thaiNum(n); $('btnReadRiver').setAttribute('aria-label',`อ่านกระทงคนอื่น ${fmtNum(n)} ใบ`); }
+function renderRiverRead(){
+  const items=remoteReadItems(), list=$('riverReadList'); list.textContent='';
+  $('riverReadCount').textContent=items.length?`มี ${fmtNum(items.length)} กระทงให้เปิดอ่าน`:'ยังไม่มีกระทงใหม่ในสายน้ำร่วม';
+  $('riverReadEmpty').hidden=items.length>0;
+  items.forEach(k=>{
+    const b=document.createElement('button'); b.type='button'; b.className='river-read-item';
+    b.setAttribute('aria-label',`อ่านคำอธิษฐานของ ${k.data.names||'ผู้อธิษฐาน'}`);
+    const mark=document.createElement('span'); mark.className='river-read-mark'; mark.textContent='✦';
+    const copy=document.createElement('span'); copy.className='river-read-copy';
+    const name=document.createElement('strong'); name.textContent=k.data.names||'ผู้อธิษฐาน';
+    const wish=document.createElement('span'); wish.textContent=k.data.wish?`“${k.data.wish}”`:'ฝากคำอธิษฐานไว้กับสายน้ำ';
+    const arrow=document.createElement('span'); arrow.className='river-read-arrow'; arrow.textContent='›';
+    copy.append(name,wish); b.append(mark,copy,arrow);
+    b.addEventListener('click',()=>{ show($('riverRead'),false); openPeek(k); }); list.append(b);
+  });
+  updateReadRiverButton(); }
+function openRiverRead(){ renderRiverRead(); show($('riverRead')); audio.click(); }
 $('peekClose').addEventListener('click',()=>{ show(peekEl,false); audio.click(); });
 peekEl.addEventListener('click',e=>{ if(e.target===peekEl){ show(peekEl,false); audio.click(); } });
+$('btnReadRiver').addEventListener('click',openRiverRead);
+$('riverReadClose').addEventListener('click',()=>{ show($('riverRead'),false); audio.click(); });
+$('riverRead').addEventListener('click',e=>{ if(e.target===$('riverRead')){ show($('riverRead'),false); audio.click(); } });
 
 /* ======================= Journal ======================= */
 const JKEY='lk_journal_v1', CKEY='lk_count_v1';
@@ -1916,7 +1966,7 @@ try{ if(navigator.canShare&&navigator.canShare({files:[new File([''],'a.png',{ty
 
 /* ======================= Keyboard ======================= */
 addEventListener('keydown',e=>{
-  if(e.key==='Escape'){ show(journalEl,false); show(shareEl,false); show(peekEl,false); return; }
+  if(e.key==='Escape'){ show(journalEl,false); show(shareEl,false); show(peekEl,false); show($('riverRead'),false); return; }
   if(/INPUT|TEXTAREA/.test(document.activeElement&&document.activeElement.tagName)) return;
   const k=e.key.toLowerCase();
   if(k==='m'){ audio.toggle(); refreshAudioUI(); }
@@ -1937,9 +1987,11 @@ function adaptQuality(raw){ perf.acc+=Math.min(raw,0.1); perf.n++;
 
 /* ======================= Main loop ======================= */
 const clock=new THREE.Clock();
+let lastReadCountSync=-1;
 function frame(){
   requestAnimationFrame(frame);
   const raw=clock.getDelta(), dt=Math.min(raw,0.05); T+=dt; uTime.value=T;
+  if(Math.floor(T)!==lastReadCountSync){ lastReadCountSync=Math.floor(T); updateReadRiverButton(); }
   updateAtmos(dt); updateCamera(dt,T); updateViewOffset(dt);
   skyGroup.position.set(camera.position.x,0,camera.position.z);
   applyRipples(dt);
