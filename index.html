@@ -789,6 +789,46 @@ function buildNan(){ const g=new THREE.Group();
 const riverGroups={chaophraya:buildChaoPhraya(),mekong:buildMekong(),ping:buildPing(),nan:buildNan()};
 RIVER_KEYS.forEach(k=>{ riverGroups[k].visible=k===startRiver; scene.add(riverGroups[k]); });
 
+/* ======================= Photo panoramas from the riverbanks ======================= */
+const BG_RADIUS=640, BG_REPEAT=5;
+const BG_PHOTOS={
+  chaophraya:{src:'bg/chaophraya.webp',h:163,off:1.28},
+  mekong:{src:'bg/mekong.webp',h:92,off:1.28},
+  ping:{src:'bg/ping.webp',h:147,off:1.28},
+  nan:{src:'bg/nan.webp',h:136,off:0}
+};
+const bgMaster=new THREE.Group(); bgMaster.renderOrder=-6; scene.add(bgMaster);
+const bgMeshes={}, bgReady={}; let bgRiver=startRiver;
+const bgLoader=new THREE.TextureLoader();
+function ensurePhotoBG(id){
+  if(bgMeshes[id]) return;
+  const P=BG_PHOTOS[id]; if(!P) return;
+  const geo=new THREE.CylinderGeometry(BG_RADIUS,BG_RADIUS,P.h,180,1,true);
+  const mat=new THREE.MeshBasicMaterial({transparent:true,side:THREE.BackSide,depthWrite:false,fog:false,color:new THREE.Color(0.86,0.87,0.95),opacity:0});
+  const mesh=new THREE.Mesh(geo,mat); mesh.position.y=P.h/2-5; mesh.visible=false; mesh.renderOrder=-6; mesh.frustumCulled=false;
+  bgMaster.add(mesh); bgMeshes[id]=mesh;
+  bgLoader.load(P.src,tex=>{
+    tex.colorSpace=THREE.SRGBColorSpace;
+    tex.wrapS=THREE.MirroredRepeatWrapping; tex.wrapT=THREE.ClampToEdgeWrapping;
+    tex.repeat.set(BG_REPEAT,1); tex.offset.x=P.off;
+    tex.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());
+    mat.map=tex; mat.needsUpdate=true; bgReady[id]=true;
+    if(bgRiver===id) applyRiverVisuals(id);
+  },undefined,()=>{ bgReady[id]=false; });
+}
+function applyRiverVisuals(id){
+  bgRiver=id;
+  RIVER_KEYS.forEach(k=>{
+    const photo=bgMeshes[k], ready=!!(photo&&bgReady[k]);
+    riverGroups[k].visible=(k===id)&&!ready;
+    if(photo){ photo.visible=(k===id)&&ready; photo.material.opacity=(k===id&&ready)?1:0; }
+  });
+}
+function initPhotoBG(){
+  ensurePhotoBG(bgRiver);
+  RIVER_KEYS.filter(k=>k!==bgRiver).forEach((k,i)=>setTimeout(()=>ensurePhotoBG(k),900+i*450));
+}
+
 /* mist */
 [[150,16,0.22],[300,32,0.26]].forEach(([r,h,o])=>{
   const m=new THREE.ShaderMaterial({uniforms:{uTime,uColor:{value:F.mist},uOpacity:{value:o}},
@@ -1110,19 +1150,15 @@ function makeLabelTex(text){
 
 /* ======================= Krathong ======================= */
 class Krathong{
-  constructor(base,palette,decor,homeX=0,ambient=false,data=null){
+  constructor(base,palette,decor,homeX=0,data=null){
     this.root=new THREE.Group(); this.tiltNode=new THREE.Group(); this.spin=new THREE.Group();
     this.root.add(this.tiltNode); this.tiltNode.add(this.spin); scene.add(this.root);
-    this.root.position.set(homeX,0,0); this.homeX=homeX; this.seed=Math.random()*100; this.ambient=ambient; this.data=data;
-    this.released=false; this.vel=new THREE.Vector3(); this.releaseTime=0; this.fade=1; this.dead=false; this.fadeOut=false;
+    this.root.position.set(homeX,0,0); this.homeX=homeX; this.seed=Math.random()*100; this.data=data;
+    this.released=false; this.vel=new THREE.Vector3(); this.releaseTime=0; this.fade=1; this.dead=false; this.fadeOut=false; this.remote=false;
     this.rippleT=Math.random()*1.5; this.smokeT=0; this.trailT=0; this.flick=1; this.spinDir=Math.random()<.5?-1:1; this.label=null;
     this.pvx=0; this.pvz=0; this.wob=0; this.wobT=0; this.wdx=0; this.wdz=0; this.tx=0; this.tz=0; this.inkTex=null; this.inkStrokes=null;
     this.build(base,palette,decor,true);
-    if(ambient){ this.released=true; this.releaseTime=-999; this.respawn(true); }
   }
-  respawn(initial,near=false){ const side=Math.random()<.5?-1:1;
-    this.root.position.set(side*rand(near?3:6,near?14:28),0,initial?rand(-110,-12):near?rand(-14,-8):rand(-30,-18));
-    this.vel.set(rand(-.03,.03),0,-rand(0.3,0.55)); this.pop=0; this.popFrom=0; this.pvx=this.pvz=0; }
   build(base,palette,decor,fresh=false,quiet=false){
     if(this.model){ this.spin.remove(this.model); disposeObj(this.model); }
     this.base=base; this.palette=palette; this.decor={...decor}; this.model=buildKrathongModel(base,palette,this.decor,this.inkTex); this.spin.add(this.model);
@@ -1147,8 +1183,7 @@ class Krathong{
       p.x+=this.vel.x*e*dt; p.z+=this.vel.z*e*dt; this.spin.rotation.y+=dt*0.05*this.spinDir*e; }
     else { const f=1-Math.exp(-dt*2.2); p.x+=(this.homeX-p.x)*f; p.z+=(0-p.z)*f; this.spin.rotation.y+=dt*0.04; }
     p.x+=this.pvx*dt; p.z+=this.pvz*dt; const dmp=Math.exp(-dt*1.4); this.pvx*=dmp; this.pvz*=dmp;
-    if(this.ambient){ if(p.z<-140) this.respawn(false); }
-    else if(this.fadeOut||(this.released&&p.z<-120)){ this.fade-=dt*(this.fadeOut&&!this.released?2.0:0.25); if(this.fade<=0){ this.fade=0; this.dead=true; } }
+    if(this.fadeOut||(this.released&&p.z<-120)){ this.fade-=dt*(this.fadeOut&&!this.released?2.0:0.25); if(this.fade<=0){ this.fade=0; this.dead=true; } }
     const h=waveH(p.x,p.z,t), e=0.35, hx=waveH(p.x+e,p.z,t)-h, hz=waveH(p.x,p.z+e,t)-h;
     this.wobT+=dt; this.wob*=Math.exp(-dt*1.6); const w=this.wob*Math.sin(this.wobT*5.5);
     p.y=h-0.03+Math.sin(t*1.25+this.seed)*0.018-Math.abs(w)*0.08;
@@ -1163,7 +1198,6 @@ class Krathong{
     if(this.fairy){ this.fairy.rotation.y+=dt*0.35; const ch=this.fairy.children;
       for(let i=0;i<ch.length;i++){ ch[i].position.y=0.5+Math.sin(t*1.6+i*1.3)*0.1; ch[i].scale.setScalar(0.15+0.09*(0.5+0.5*Math.sin(t*3+i*2.1))); } }
     if(this.label){ this.label.material.opacity=this.fade*(0.88+0.12*Math.sin(t*1.5+s0)); this.label.position.y=2.0+Math.sin(t*0.9+s0)*0.06; }
-    if(this.ambient) return;
     this.rippleT-=dt;
     if(this.rippleT<=0){ const moving=this.released&&t-this.releaseTime<60; addRipple(p.x,p.z,(moving?0.9:0.55)*this.fade,t); this.rippleT=moving?0.6:2.3+Math.random(); }
     if(this.released&&this.fade>0.3&&t-this.releaseTime<45){ this.trailT-=dt;
@@ -1441,14 +1475,12 @@ const WISHES={
   forgive:{single:['ขอขมาพระแม่คงคา ที่เคยล่วงเกินสายน้ำ ขอให้สิ่งไม่ดีทั้งหลายลอยไปกับกระทงใบนี้','ขอให้ทุกความทุกข์ ความโกรธ และความเศร้า ลอยไปกับสายน้ำ ไม่หวนกลับมาอีก','ขอปล่อยวางเรื่องเก่าที่ค้างคาใจ แล้วเริ่มต้นใหม่อย่างเบาสบาย','ขอบคุณสายน้ำที่หล่อเลี้ยงชีวิต และขออภัยในทุกสิ่งที่เคยทำให้เธอขุ่นมัว']}
 };
 const FORTUNES=['ความรักที่รอคอยกำลังเดินทางมาหาคุณ อย่างช้า ๆ แต่มั่นคง','สิ่งที่หายไปจะกลับคืนมาในรูปแบบที่งดงามกว่าเดิม','ผู้ใหญ่ใจดีจะยื่นมือมาช่วยในเวลาที่คุณต้องการที่สุด','ปีนี้เหมาะกับการเริ่มต้นสิ่งใหม่ ดวงดาวเป็นใจให้คุณ','ความเหนื่อยล้าจะคลี่คลาย เหมือนเมฆที่ลอยผ่านดวงจันทร์','คนที่คิดถึงคุณ กำลังมองดวงจันทร์ดวงเดียวกันอยู่','โชคลาภเล็ก ๆ จะไหลมาหาคุณ เหมือนระลอกน้ำที่ไม่ขาดสาย','รอยยิ้มของคุณจะเปลี่ยนวันธรรมดาของใครบางคนให้พิเศษ','สุขภาพจะแข็งแรงขึ้น หากใจดีกับร่างกายตัวเองมากขึ้น','คำอธิษฐานคืนนี้ จะสมหวังในวันที่คุณไม่ทันตั้งตัว','มิตรภาพเก่าจะหวนกลับมา พร้อมข่าวดีที่ทำให้ใจพองโต','ความพยายามที่ไม่มีใครเห็น กำลังจะผลิบานให้ทุกคนได้ชื่นชม'];
-const SAMPLE_NAMES=['น้ำฝน','ภูมิ','ใบเตย','ต้นข้าว','มะปราง','พลอย','ภูผา','แพรวา','ข้าวหอม','ฟ้าใส','เมฆา','จันทร์เจ้า'];
-function heartInk(){ const s=[]; for(let i=0;i<=48;i++){ const t=i/48*Math.PI*2, x=16*Math.pow(Math.sin(t),3), y=13*Math.cos(t)-5*Math.cos(2*t)-2*Math.cos(3*t)-Math.cos(4*t); s.push([0.5+x/40,0.47-y/40]); } return [s]; }
+
 
 /* ======================= State ======================= */
 const state={phase:'landing',base:'leaf',palette:'marigold',mode:'single',cat:'love',river:startRiver,decor:{incense:true,fairy:true,garland:false},card:null};
 const DUAL_X=1.55;
 let krathongs=[], active=[], leads=[], T=0;
-const ambient=[];
 let inkStrokes=[];
 let timers=[]; const later=(fn,ms)=>timers.push(setTimeout(fn,ms)); const clearTimers=()=>{ timers.forEach(clearTimeout); timers=[]; };
 const studioEl=$('studio'), landingEl=$('landing'), cardEl=$('wishCard'), fabsEl=$('fabs'), capEl=$('caption'), hintEl=$('captureHint'), tapHintEl=$('tapHint'), journalEl=$('journal'), shareEl=$('shareModal'), peekEl=$('peek');
@@ -1458,7 +1490,7 @@ let toastT; function toast(msg,ms=2800){ const el=$('toast'); el.textContent=msg
 function spawnActive(){
   active=[]; const xs=state.mode==='dual'?[-DUAL_X,DUAL_X]:[0];
   xs.forEach(x=>{ const k=new Krathong(state.base,state.palette,state.decor,x); if(inkStrokes.length) k.setInk(inkStrokes); active.push(k); krathongs.push(k); });
-  const rel=krathongs.filter(k=>k.released&&!k.fadeOut&&!k.ambient); while(rel.length>6) rel.shift().fadeOut=true; }
+  const rel=krathongs.filter(k=>k.released&&!k.remote&&!k.fadeOut); while(rel.length>6) rel.shift().fadeOut=true; }
 function updateLabels(){ const n1=$('name1').value.trim(), n2=$('name2').value.trim(); if(active[0]) active[0].setLabel(n1); if(active[1]) active[1].setLabel(n2); }
 let labelT; ['name1','name2'].forEach(id=>$(id).addEventListener('input',()=>{ clearTimeout(labelT); labelT=setTimeout(updateLabels,160); }));
 
@@ -1560,8 +1592,9 @@ function setRiver(id,announce=true){
   if(id===state.river) return;
   state.river=id; try{ localStorage.setItem('lk_river',id); }catch(e){}
   riverTargets(id,false); updateHud(); audio.click();
+  ensurePhotoBG(id);
   const veil=$('veil'); veil.classList.add('on');
-  clearTimeout(setRiver._t); setRiver._t=setTimeout(()=>{ RIVER_KEYS.forEach(k=>riverGroups[k].visible=k===id); veil.classList.remove('on'); },620);
+  clearTimeout(setRiver._t); setRiver._t=setTimeout(()=>{ applyRiverVisuals(id); veil.classList.remove('on'); },620);
   if(announce) toast(`${RIVERS[id].name} · ${RIVERS[id].desc}`,3400); }
 document.querySelectorAll('[data-river]').forEach(b=>b.addEventListener('click',()=>setRiver(b.dataset.river)));
 
@@ -1575,20 +1608,43 @@ minuteTick();
 setTimeout(()=>{ minuteTick(); setInterval(minuteTick,60000); },(60-new Date().getSeconds())*1000+50);
 
 /* ======================= Shared river (Firebase) ======================= */
-const net={db:null,api:null,seen:new Set(),mine:new Set(),slot:0,loaded:false};
+const net={db:null,api:null,seen:new Set(),mine:new Set(),pruned:new Set(),loaded:false};
+const REMOTE_TTL=4*60*1000, REMOTE_MAX=8; // Match the normal drift and fade-out lifetime.
+const REMOTE_DECOR={incense:true,fairy:true,garland:false};
 function cleanRec(r){ if(!r) return null;
   let names=null;
   if(typeof r.n==='string') names=r.n;
   else if(typeof r.n1==='string') names=r.n1+(typeof r.n2==='string'&&r.n2?' ♥ '+r.n2:'');
   if(!names||typeof r.w!=='string') return null;
   const ink=typeof r.i==='string'?r.i:(typeof r.h==='string'?r.h:'');
-  return {id:r.id,names:names.slice(0,84),wish:r.w.slice(0,160),base:BASES[r.b]?r.b:'leaf',palette:PALETTES[r.p]?r.p:'marigold',ink:ink.slice(0,NET_INK_MAX+10)}; }
+  return {id:r.id,names:names.slice(0,84),wish:r.w.slice(0,160),base:BASES[r.b]?r.b:'leaf',palette:PALETTES[r.p]?r.p:'marigold',ink:ink.slice(0,NET_INK_MAX+10),t:Number(r.t)||0}; }
+function netRemove(id){ if(!net.db||!net.api||net.pruned.has(id)) return; net.pruned.add(id);
+  net.api.remove(net.api.ref(net.db,'krathongs/'+id)).catch(()=>net.pruned.delete(id)); }
+function makeRemote(r,slot=0,total=1,near=false){
+  let live=0,oldest=null;
+  for(const k of krathongs) if(k.remote&&!k.dead&&!k.fadeOut){ live++; if(!oldest||k.releaseTime<oldest.releaseTime) oldest=k; }
+  if(live>=REMOTE_MAX&&oldest) oldest.fadeOut=true;
+  const k=new Krathong(r.base,r.palette,REMOTE_DECOR,0);
+  k.adopt(r); k.remote=true; k.released=true; k.releaseTime=T-(near?4:35);
+  if(near){ k.root.position.set(rand(-6,6),0,rand(-16,-9)); k.vel.set(rand(-.04,.04),0,-rand(.5,.68)); }
+  else { const f=total>1?(slot+0.5)/total:0.5; k.root.position.set(rand(-15,15),0,-12-f*80); k.vel.set(rand(-.05,.05),0,-rand(.48,.66)); }
+  krathongs.push(k);
+  return k; }
 function adoptShared(list){
-  const recs=list.map(cleanRec).filter(r=>r&&!net.seen.has(r.id)&&!net.mine.has(r.id));
-  const take=recs.slice(-ambient.length);
-  take.forEach(r=>{ net.seen.add(r.id); const k=ambient[net.slot++%ambient.length]; k.adopt(r); if(net.loaded) k.respawn(false,true); });
-  if(net.loaded&&take.length) toast(`มีกระทงใหม่จาก “${take[take.length-1].names}” ลอยมาตามสายน้ำ`,3600);
-  net.loaded=true; }
+  const now=Date.now(),fresh=[],stale=[];
+  for(const raw of list){
+    const r=cleanRec(raw); if(!r) continue;
+    if(!r.t||now-r.t>REMOTE_TTL||r.t>now+600000){ net.seen.add(r.id); stale.push(r); continue; }
+    fresh.push(r);
+  }
+  for(const r of stale) netRemove(r.id);
+  const unseen=fresh.filter(r=>!net.seen.has(r.id)&&!net.mine.has(r.id));
+  if(net.loaded){ unseen.forEach(r=>makeRemote(r,0,1,true));
+    if(unseen.length) toast(`มีกระทงใหม่จาก “${unseen[unseen.length-1].names}” ลอยมาตามสายน้ำ`,3600); }
+  else { const take=unseen.slice(-REMOTE_MAX); take.forEach((r,i)=>makeRemote(r,i,take.length,false)); }
+  fresh.forEach(r=>net.seen.add(r.id));
+  net.loaded=true;
+  return fresh.length; }
 async function initShared(){
   const feed=$('hudFeed');
   if(!FIREBASE_CONFIG){ feed.textContent='โหมดส่วนตัว'; return; }
@@ -1599,7 +1655,8 @@ async function initShared(){
     feed.textContent='กำลังเชื่อมสายน้ำร่วม…';
     db.onValue(db.query(db.ref(net.db,'krathongs'),db.limitToLast(40)),snap=>{
       const list=[]; snap.forEach(ch=>{ list.push({id:ch.key,...ch.val()}); });
-      feed.textContent=`สายน้ำร่วม · ${thaiNum(list.length)} ใบล่าสุด`; adoptShared(list);
+      const n=adoptShared(list);
+      feed.textContent=n>0?`สายน้ำร่วม · ${thaiNum(n)} ใบล่าสุด`:'สายน้ำร่วม · ยังไม่มีกระทงลอยอยู่';
     },()=>{ feed.textContent='โหมดส่วนตัว (อ่านสายน้ำร่วมไม่ได้)'; });
   }catch(e){ feed.textContent='โหมดส่วนตัว (เชื่อมต่อไม่สำเร็จ)'; } }
 function netPush(rec){ if(!net.db) return;
@@ -1890,13 +1947,8 @@ function frame(){
 /* ======================= Init ======================= */
 document.querySelectorAll('[data-river]').forEach(b=>b.classList.toggle('active',b.dataset.river===state.river));
 spawnActive();
-for(let i=0;i<Q(7,4);i++){
-  const d={names:pick(SAMPLE_NAMES),wish:pick(WISHES[pick(Object.keys(WISHES))].single),ink:''};
-  const k=new Krathong(pick(BASE_KEYS),pick(PAL_KEYS),{incense:Math.random()<.6,fairy:Math.random()<.45,garland:Math.random()<.4},0,true,d);
-  if(i%3===0){ const h=heartInk(); k.setInk(h); d.ink=encodeInk(h).code; }
-  ambient.push(k); krathongs.push(k); }
-refreshLandStat(); updateInkInfo(); updateHud(); initShared();
-window.__river={state,krathongs,ambient,net,RIVERS,setRiver,getActive:()=>active,getT:()=>T,renderer,composer,scene,camera,encodeInk,decodeInk,fitInkCode,getInk:()=>inkStrokes,setInk:(s)=>{inkStrokes=s;sizeInk();redrawInk();inkChanged(true);}};
+refreshLandStat(); updateInkInfo(); updateHud(); initPhotoBG(); initShared();
+window.__river={state,krathongs,net,RIVERS,setRiver,bgMeshes,bgReady,ensurePhotoBG,applyRiverVisuals,REMOTE_TTL,REMOTE_MAX,getActive:()=>active,getT:()=>T,renderer,composer,scene,camera,encodeInk,decodeInk,fitInkCode,getInk:()=>inkStrokes,setInk:(s)=>{inkStrokes=s;sizeInk();redrawInk();inkChanged(true);}};
 frame();
 const hideLoader=()=>{ const l=$('loader'); if(!l||l.classList.contains('hide')) return; l.classList.add('hide'); setTimeout(()=>l.remove(),1300); };
 (document.fonts?document.fonts.ready:Promise.resolve()).then(()=>setTimeout(hideLoader,400));
