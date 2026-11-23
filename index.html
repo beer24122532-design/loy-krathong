@@ -158,6 +158,49 @@
   .sharebox{position:relative;display:grid;place-items:center;min-height:200px}
   #shareImg{width:auto;max-width:100%;max-height:58vh;aspect-ratio:4/5;object-fit:contain;border-radius:18px;border:1px solid rgba(232,190,110,.3);background:#050818;transition:opacity .5s}
   #shareLoading{position:absolute;inset:0;display:grid;place-items:center;font-family:'Charm',cursive;font-size:1.4rem;color:#f3d999}
+  /* Krathong peek card */
+  .peek-wrap{background:radial-gradient(ellipse at 50% 42%,rgba(12,20,50,.46),rgba(2,4,15,.82) 72%);z-index:56;padding:18px}
+  .peek-wrap.fade{transition:opacity .35s ease,visibility 0s linear .35s}
+  .peek-wrap.fade.show{transition:opacity .35s ease,visibility 0s}
+  .peek-card{position:relative;width:min(94vw,560px);max-height:calc(100vh - 36px);overflow-y:auto;text-align:center;color:#fdf0d6;padding:30px 34px 18px;border-radius:32px;border:1px solid rgba(232,190,110,.5);
+    background:radial-gradient(120% 75% at 50% -12%,rgba(255,212,140,.16),transparent 55%),linear-gradient(168deg,rgba(37,38,84,.96),rgba(8,12,34,.97) 58%,rgba(13,18,44,.97));
+    box-shadow:0 32px 90px rgba(0,0,0,.66),0 0 70px rgba(232,170,90,.14),inset 0 1px 0 rgba(255,240,210,.18);
+    transform:translateY(22px) scale(.955);opacity:0;transition:transform .55s cubic-bezier(.18,.9,.25,1.08),opacity .38s ease;scrollbar-width:thin;scrollbar-color:rgba(232,190,110,.35) transparent}
+  .peek-wrap.show .peek-card{transform:none;opacity:1}
+  .peek-card::before{content:"";position:absolute;inset:9px;border-radius:25px;border:1px solid rgba(232,190,110,.16);pointer-events:none}
+  .peek-card::after{content:"";position:absolute;left:50%;top:0;transform:translateX(-50%);width:min(240px,55%);height:1px;background:linear-gradient(90deg,transparent,#f5d695,transparent);box-shadow:0 0 18px rgba(255,200,120,.8);pointer-events:none}
+  .peek-close{position:absolute;right:14px;top:14px;z-index:2}
+  .peek-crest{display:flex;align-items:center;justify-content:center;gap:9px;color:#f0cd85;font-size:.72rem;margin-top:2px}
+  .peek-crest span{height:1px;width:40px;background:linear-gradient(90deg,transparent,rgba(240,205,133,.7),transparent)}
+  .peek-eyebrow{font-size:.67rem;letter-spacing:.3em;color:rgba(246,226,186,.66);font-weight:300;margin-top:7px}
+  .peek-main{display:flex;align-items:center;gap:22px;text-align:left;margin-top:20px}
+  .peek-seal-wrap{flex:none;display:flex;flex-direction:column;align-items:center;gap:8px}
+  .peek-seal{position:relative;width:112px;height:112px;border-radius:50%;display:grid;place-items:center;
+    background:radial-gradient(circle at 50% 36%,#fff9e8,#f4ddb0 58%,#d5a75e 100%);
+    box-shadow:0 0 0 1px rgba(255,245,215,.85),0 0 0 6px rgba(232,190,110,.09),0 0 36px rgba(255,190,110,.3),inset 0 -8px 20px rgba(150,95,30,.3)}
+  .peek-seal::before{content:"";position:absolute;inset:5px;border-radius:50%;border:1px dashed rgba(140,85,30,.35);pointer-events:none}
+  #peekInk{display:block;width:100%;height:100%;border-radius:50%}
+  .peek-glyph{font-family:'Charm',cursive;font-size:2.9rem;line-height:1;color:#8a3317;text-shadow:0 0 12px rgba(210,120,50,.35)}
+  .peek-seal-cap{font-size:.6rem;letter-spacing:.2em;color:rgba(246,226,186,.52);white-space:nowrap}
+  .peek-body{flex:1;min-width:0}
+  .peek-names{font-size:clamp(1.55rem,5.6vw,2.15rem);line-height:1.5;color:#fff1cf;text-shadow:0 0 16px rgba(255,205,130,.7),0 0 40px rgba(255,160,90,.3);overflow-wrap:anywhere;text-wrap:balance}
+  .peek-heart{display:inline-block;margin:0 .3em;font-size:.8em;color:#ffb3c7;text-shadow:0 0 14px rgba(255,140,170,.9);animation:beat 1.8s ease-in-out infinite}
+  .peek-orn{display:flex;align-items:center;gap:9px;margin:7px 0 6px;color:#f0cd85;font-size:.72rem}
+  .peek-orn span{height:1px;width:40px;background:linear-gradient(90deg,transparent,rgba(240,205,133,.7),transparent)}
+  .peek-wish{font-size:clamp(1rem,3.9vw,1.16rem);line-height:1.8;color:#fdf0d6;text-shadow:0 0 12px rgba(255,200,130,.35);overflow-wrap:anywhere;text-wrap:pretty;margin-top:7px}
+  .peek-meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+  .peek-pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;border:1px solid rgba(232,190,110,.24);background:rgba(255,220,160,.05);font-size:.66rem;letter-spacing:.03em;color:rgba(246,234,208,.82);white-space:nowrap}
+  .peek-pill .sw{width:8px;height:8px;margin:0;border-width:0;box-shadow:0 0 8px rgba(255,255,255,.22)}
+  .peek-foot{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:20px;font-size:.62rem;letter-spacing:.12em;color:rgba(246,226,186,.4)}
+  .peek-foot::before,.peek-foot::after{content:"";height:1px;width:34px;background:linear-gradient(90deg,transparent,rgba(232,190,110,.42))}
+  .peek-foot::after{transform:scaleX(-1)}
+  @media (max-width:520px){
+    .peek-card{padding:26px 20px 16px;border-radius:26px}
+    .peek-main{flex-direction:column;gap:12px;text-align:center;margin-top:14px}
+    .peek-seal{width:96px;height:96px}
+    .peek-meta{justify-content:center}
+    .peek-wish{font-size:1rem}
+  }
   /* Loader */
   #loader{position:fixed;inset:0;z-index:80;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(ellipse at center,#0b1238 0%,#02040f 70%);transition:opacity 1.2s ease}
   #loader.hide{opacity:0;pointer-events:none}
@@ -320,7 +363,7 @@
   <p class="card-fortune"><span>เซียมซีสายน้ำ</span><b id="cardFortune"></b></p>
   <p id="cardDate" class="card-date"></p>
 </article>
-<div id="tapHint" class="fade ui-ctrl">แตะผืนน้ำให้ปลาตกใจกระโดด · แตะท้องฟ้าจุดพลุ · แตะกระทงผู้อื่นเพื่ออ่านคำอธิษฐาน</div>
+<div id="tapHint" class="fade ui-ctrl">แตะผืนน้ำให้ปลาตกใจกระโดด · แตะท้องฟ้าจุดพลุ · แตะกระทงผู้อื่นเพื่อเปิดป้ายคำอธิษฐาน</div>
 
 <!-- Phase 4 -->
 <nav id="fabs" class="fade ui-ctrl">
@@ -364,6 +407,27 @@
       <button id="sShare" class="btn-ghost" style="display:none">แชร์ไปยังแอปอื่น</button>
     </div>
     <p class="note text-center">ขนาด ๑,๐๘๐ × ๑,๓๕๐ พิกเซล · เหมาะสำหรับ IG และ LINE</p>
+  </div>
+</div>
+
+<div id="peek" class="modal-wrap peek-wrap fade" role="dialog" aria-modal="true" aria-labelledby="peekNames">
+  <div class="peek-card">
+    <button id="peekClose" class="mini peek-close" aria-label="ปิดป้ายคำอธิษฐาน">✕</button>
+    <div class="peek-crest" aria-hidden="true"><span></span><b>✦</b><span></span></div>
+    <p class="peek-eyebrow">กระทงจากสายน้ำร่วม</p>
+    <div class="peek-main">
+      <div class="peek-seal-wrap">
+        <div class="peek-seal"><canvas id="peekInk" width="256" height="256" aria-hidden="true"></canvas><span id="peekGlyph" class="peek-glyph" aria-hidden="true">❀</span></div>
+        <p class="peek-seal-cap">ลายมือจากใจ</p>
+      </div>
+      <div class="peek-body">
+        <h3 id="peekNames" class="font-charm peek-names"></h3>
+        <div class="peek-orn" aria-hidden="true"><span></span><b>❀</b><span></span></div>
+        <p id="peekWish" class="font-charm peek-wish"></p>
+        <div id="peekMeta" class="peek-meta"></div>
+      </div>
+    </div>
+    <p class="peek-foot">คำอธิษฐานจากผู้ร่วมสายน้ำ · แตะพื้นหลังเพื่อกลับ</p>
   </div>
 </div>
 
@@ -1387,7 +1451,7 @@ let krathongs=[], active=[], leads=[], T=0;
 const ambient=[];
 let inkStrokes=[];
 let timers=[]; const later=(fn,ms)=>timers.push(setTimeout(fn,ms)); const clearTimers=()=>{ timers.forEach(clearTimeout); timers=[]; };
-const studioEl=$('studio'), landingEl=$('landing'), cardEl=$('wishCard'), fabsEl=$('fabs'), capEl=$('caption'), hintEl=$('captureHint'), tapHintEl=$('tapHint'), journalEl=$('journal'), shareEl=$('shareModal');
+const studioEl=$('studio'), landingEl=$('landing'), cardEl=$('wishCard'), fabsEl=$('fabs'), capEl=$('caption'), hintEl=$('captureHint'), tapHintEl=$('tapHint'), journalEl=$('journal'), shareEl=$('shareModal'), peekEl=$('peek');
 const show=(el,on=true)=>el.classList.toggle('show',on);
 let toastT; function toast(msg,ms=2800){ const el=$('toast'); el.textContent=msg; show(el); clearTimeout(toastT); toastT=setTimeout(()=>show(el,false),ms); }
 
@@ -1483,7 +1547,7 @@ function touchWater(px,pz,s=1){
   spawnSplash(px,pz,s); moonDim=Math.min(moonDim,0.42); audio.splash(s); scareFish(px,pz); }
 function onTap(x,y){
   const hit=pickKrathong(x,y);
-  if(hit){ const info=hit.data; toast(`${info.names} · “${info.wish}”`,5600); hit.burst(16); audio.click(); return; }
+  if(hit){ hit.burst(16); openPeek(hit); return; }
   _ndc.set(x/innerWidth*2-1,-(y/innerHeight)*2+1); _ray.setFromCamera(_ndc,camera);
   const o=_ray.ray.origin, d=_ray.ray.direction;
   if(d.y<-0.005){ const t=-o.y/d.y; if(t<320){ touchWater(o.x+d.x*t,o.z+d.z*t,1); return; } }
@@ -1614,6 +1678,30 @@ $('inkImport').addEventListener('click',()=>{ const s=prompt('วางรหั
 if(window.ResizeObserver) new ResizeObserver(sizeInk).observe(pad);
 function drawCardInk(cv,strokes){ const g=cv.getContext('2d'), S=cv.width, m=S*0.14; g.clearRect(0,0,S,S);
   drawInk(g,strokes,m,m,S-m*2,{color:'#ffe2a4',width:0.03,glow:'rgba(255,170,80,.85)'}); }
+
+/* ======================= Peek card (กระทงของผู้เล่นคนอื่น) ======================= */
+function openPeek(k){
+  const d=k&&k.data; if(!d) return;
+  const nm=$('peekNames'); nm.textContent='';
+  String(d.names||'ผู้อธิษฐาน').split(' ♥ ').forEach((part,i)=>{
+    if(i){ const h=document.createElement('span'); h.className='peek-heart'; h.textContent='♥'; nm.append(h); }
+    nm.append(document.createTextNode(part)); });
+  $('peekWish').textContent='“'+(d.wish||'')+'”';
+  const meta=$('peekMeta'); meta.textContent='';
+  const pill=(cls,label)=>{ if(!label) return; const s=document.createElement('span'); s.className='peek-pill';
+    const dot=document.createElement('i'); dot.className='sw '+cls; s.append(dot,document.createTextNode(label)); meta.append(s); };
+  pill('sw-'+(k.base||'leaf'),BASE_TH[k.base]||'กระทง');
+  pill('sw-'+(k.palette||'marigold'),PAL_TH[k.palette]||'ดอกไม้');
+  const st=(k.inkStrokes&&k.inkStrokes.length)?k.inkStrokes:decodeInk(d.ink||'');
+  const cv=$('peekInk'), g=cv.getContext('2d'), S=cv.width;
+  g.clearRect(0,0,S,S);
+  const has=!!(st&&st.length);
+  if(has) drawInk(g,st,S*0.13,S*0.13,S*0.74,{color:'#75230f',width:0.032,glow:'rgba(255,190,110,.35)'});
+  cv.style.display=has?'block':'none'; $('peekGlyph').style.display=has?'none':'block';
+  show(peekEl); audio.click();
+}
+$('peekClose').addEventListener('click',()=>{ show(peekEl,false); audio.click(); });
+peekEl.addEventListener('click',e=>{ if(e.target===peekEl){ show(peekEl,false); audio.click(); } });
 
 /* ======================= Journal ======================= */
 const JKEY='lk_journal_v1', CKEY='lk_count_v1';
@@ -1763,7 +1851,7 @@ try{ if(navigator.canShare&&navigator.canShare({files:[new File([''],'a.png',{ty
 
 /* ======================= Keyboard ======================= */
 addEventListener('keydown',e=>{
-  if(e.key==='Escape'){ show(journalEl,false); show(shareEl,false); return; }
+  if(e.key==='Escape'){ show(journalEl,false); show(shareEl,false); show(peekEl,false); return; }
   if(/INPUT|TEXTAREA/.test(document.activeElement&&document.activeElement.tagName)) return;
   const k=e.key.toLowerCase();
   if(k==='m'){ audio.toggle(); refreshAudioUI(); }
@@ -1808,7 +1896,7 @@ for(let i=0;i<Q(7,4);i++){
   if(i%3===0){ const h=heartInk(); k.setInk(h); d.ink=encodeInk(h).code; }
   ambient.push(k); krathongs.push(k); }
 refreshLandStat(); updateInkInfo(); updateHud(); initShared();
-window.__river={state,krathongs,ambient,net,RIVERS,setRiver,getActive:()=>active,getT:()=>T,renderer,composer,scene,encodeInk,decodeInk,fitInkCode,getInk:()=>inkStrokes,setInk:(s)=>{inkStrokes=s;sizeInk();redrawInk();inkChanged(true);}};
+window.__river={state,krathongs,ambient,net,RIVERS,setRiver,getActive:()=>active,getT:()=>T,renderer,composer,scene,camera,encodeInk,decodeInk,fitInkCode,getInk:()=>inkStrokes,setInk:(s)=>{inkStrokes=s;sizeInk();redrawInk();inkChanged(true);}};
 frame();
 const hideLoader=()=>{ const l=$('loader'); if(!l||l.classList.contains('hide')) return; l.classList.add('hide'); setTimeout(()=>l.remove(),1300); };
 (document.fonts?document.fonts.ready:Promise.resolve()).then(()=>setTimeout(hideLoader,400));
