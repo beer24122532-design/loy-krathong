@@ -1608,7 +1608,7 @@ minuteTick();
 setTimeout(()=>{ minuteTick(); setInterval(minuteTick,60000); },(60-new Date().getSeconds())*1000+50);
 
 /* ======================= Shared river (Firebase) ======================= */
-const net={db:null,api:null,seen:new Set(),mine:new Set(),pruned:new Set(),loaded:false};
+const net={db:null,api:null,seen:new Set(),mine:new Set(),pruned:new Set(),pruneTimers:new Map(),loaded:false};
 const REMOTE_TTL=4*60*1000, REMOTE_MAX=8; // Match the normal drift and fade-out lifetime.
 const REMOTE_DECOR={incense:true,fairy:true,garland:false};
 function cleanRec(r){ if(!r) return null;
@@ -1618,8 +1618,12 @@ function cleanRec(r){ if(!r) return null;
   if(!names||typeof r.w!=='string') return null;
   const ink=typeof r.i==='string'?r.i:(typeof r.h==='string'?r.h:'');
   return {id:r.id,names:names.slice(0,84),wish:r.w.slice(0,160),base:BASES[r.b]?r.b:'leaf',palette:PALETTES[r.p]?r.p:'marigold',ink:ink.slice(0,NET_INK_MAX+10),t:Number(r.t)||0}; }
-function netRemove(id){ if(!net.db||!net.api||net.pruned.has(id)) return; net.pruned.add(id);
+function netRemove(id){ if(!net.db||!net.api||net.pruned.has(id)) return;
+  const timer=net.pruneTimers.get(id); if(timer) clearTimeout(timer); net.pruneTimers.delete(id); net.pruned.add(id);
   net.api.remove(net.api.ref(net.db,'krathongs/'+id)).catch(()=>net.pruned.delete(id)); }
+function scheduleNetPrune(r){ if(!r.id||net.pruned.has(r.id)||net.pruneTimers.has(r.id)) return;
+  const delay=REMOTE_TTL-(Date.now()-r.t); if(delay<=0){ netRemove(r.id); return; }
+  const timer=setTimeout(()=>{ net.pruneTimers.delete(r.id); netRemove(r.id); },delay); net.pruneTimers.set(r.id,timer); }
 function makeRemote(r,slot=0,total=1,near=false){
   let live=0,oldest=null;
   for(const k of krathongs) if(k.remote&&!k.dead&&!k.fadeOut){ live++; if(!oldest||k.releaseTime<oldest.releaseTime) oldest=k; }
@@ -1642,7 +1646,7 @@ function adoptShared(list){
   if(net.loaded){ unseen.forEach(r=>makeRemote(r,0,1,true));
     if(unseen.length) toast(`มีกระทงใหม่จาก “${unseen[unseen.length-1].names}” ลอยมาตามสายน้ำ`,3600); }
   else { const take=unseen.slice(-REMOTE_MAX); take.forEach((r,i)=>makeRemote(r,i,take.length,false)); }
-  fresh.forEach(r=>net.seen.add(r.id));
+  fresh.forEach(r=>{ net.seen.add(r.id); scheduleNetPrune(r); });
   net.loaded=true;
   return fresh.length; }
 async function initShared(){
