@@ -1617,7 +1617,7 @@ minuteTick();
 setTimeout(()=>{ minuteTick(); setInterval(minuteTick,60000); },(60-new Date().getSeconds())*1000+50);
 
 /* ======================= Shared river (Firebase) ======================= */
-const net={db:null,api:null,seen:new Set(),mine:new Set(),slot:0,loaded:false};
+const net={db:null,api:null,seen:new Set(),mine:new Set(),slot:0,loaded:false,pending:[],connecting:false};
 function cleanRec(r){ if(!r) return null;
   let names=null;
   if(typeof r.n==='string') names=r.n;
@@ -1634,17 +1634,21 @@ function adoptShared(list){
 async function initShared(){
   const feed=$('hudFeed');
   if(!FIREBASE_CONFIG){ feed.textContent='โหมดส่วนตัว'; return; }
+  if(net.db||net.connecting) return; net.connecting=true;
   try{
     const V='10.12.2';
     const [appMod,db]=await Promise.all([import(`https://www.gstatic.com/firebasejs/${V}/firebase-app.js`),import(`https://www.gstatic.com/firebasejs/${V}/firebase-database.js`)]);
-    const app=appMod.initializeApp(FIREBASE_CONFIG); net.db=db.getDatabase(app); net.api=db;
+    const app=appMod.getApps().find(a=>a.name==='[DEFAULT]')||appMod.initializeApp(FIREBASE_CONFIG); net.db=db.getDatabase(app); net.api=db;
     feed.textContent='กำลังเชื่อมสายน้ำร่วม…';
     db.onValue(db.query(db.ref(net.db,'krathongs'),db.limitToLast(40)),snap=>{
       const list=[]; snap.forEach(ch=>{ list.push({id:ch.key,...ch.val()}); });
       feed.textContent=`สายน้ำร่วม · ${thaiNum(list.length)} ใบล่าสุด`; adoptShared(list);
     },()=>{ feed.textContent='โหมดส่วนตัว (อ่านสายน้ำร่วมไม่ได้)'; });
-  }catch(e){ feed.textContent='โหมดส่วนตัว (เชื่อมต่อไม่สำเร็จ)'; } }
-function netPush(rec){ if(!net.db) return;
+    const pending=net.pending.splice(0); pending.forEach(netPush);
+  }catch(e){ feed.textContent='โหมดส่วนตัว (เชื่อมต่อไม่สำเร็จ)'; }
+  finally{ net.connecting=false; } }
+addEventListener('online',()=>{ if(!net.db) initShared(); });
+function netPush(rec){ if(!net.db||!net.api){ net.pending.push(rec); return; }
   try{
     const payload={n1:String(rec.n1||rec.n||'ผู้อธิษฐาน').slice(0,40),n2:String(rec.n2||'').slice(0,40),w:String(rec.w||'').slice(0,160),b:rec.b,p:rec.p,t:net.api.serverTimestamp()};
     const h=rec.h?String(rec.h).slice(0,NET_INK_MAX):'';
